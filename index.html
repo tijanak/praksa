@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .toolbox {
+        margin-bottom: 5px;
+      }
+      .image-container {
+        position: relative;
+        width: 1024px;
+        height: 1024px;
+      }
+      .canvas-mask {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      .image-map {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="imageContainer" class="image-container">
+      <img id="imageMap" class="image-map" src="256x256_x4.png" />
+      <canvas id="canvasMask" class="canvas-mask" />
+    </div>
+    <script>
+      let modelScale = { height: 1024, width: 1024, samScale: 1 };
+      let panelSize = { width: 40, height: 30 };
+
+      const canvas = document.getElementById("canvasMask");
+      const ctx = canvas.getContext("2d");
+      canvas.width = modelScale.width;
+      canvas.height = modelScale.height;
+      function drawParallelThroughPoint(point) {
+        ctx.beginPath();
+        ctx.moveTo(0, point.y);
+        ctx.lineTo(modelScale.width, point.y);
+        ctx.stroke();
+      }
+      let testPoly = [
+        {
+          x: 598,
+          y: 169,
+        },
+        {
+          x: 664,
+          y: 244,
+        },
+        {
+          x: 754,
+          y: 234,
+        },
+        {
+          x: 662,
+          y: 121,
+        },
+      ];
+      let p2 = [
+        { x: 0, y: 0 },
+        { x: modelScale.width, y: 0 },
+        { x: modelScale.width, y: modelScale.height },
+        { x: 0, y: modelScale.height },
+      ];
+      drawPolygon(testPoly);
+      function getMidPoint(polygon) {
+        let midPoint = { x: 0, y: 0 };
+        for (let i = 0; i < polygon.length; i++) {
+          midPoint.x += polygon[i].x;
+          midPoint.y += polygon[i].y;
+        }
+        midPoint.x /= polygon.length;
+        midPoint.y /= polygon.length;
+        return midPoint;
+      }
+      function radians(degrees) {
+        return (degrees * Math.PI) / 180;
+      }
+      function rotatePolygon(polygon, degree) {
+        degree = radians(degree);
+        console.log(polygon);
+        for (let i = 0; i < polygon.length; i++) {
+          let vertexX = polygon[i].x,
+            vertexY = polygon[i].y;
+          polygon[i].x =
+            vertexX * Math.cos(degree) - vertexY * Math.sin(degree);
+          polygon[i].y =
+            vertexX * Math.sin(degree) + vertexY * Math.cos(degree);
+        }
+        console.log(polygon);
+      }
+      function translatePolygon(polygon, x, y) {
+        for (let i = 0; i < polygon.length; i++) {
+          polygon[i].x += x;
+          polygon[i].y += y;
+        }
+      }
+      function getSlope(v1, v2) {
+        return (Math.atan((v1.y - v2.y) / (v1.x - v2.x)) * 180) / Math.PI;
+      }
+      function drawPolygon(polygon) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let midPoint = getMidPoint(polygon);
+        let ind1 = 2,
+          ind2 = 1;
+        let point = { x: polygon[ind1].x, y: polygon[ind1].y };
+        let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
+        let deg = -getSlope(point2, point);
+        translatePolygon(polygon, -midPoint.x, -midPoint.y);
+        rotatePolygon(polygon, deg);
+        //rotatePolygon(polygon, -deg);
+        translatePolygon(polygon, midPoint.x, midPoint.y);
+        ctx.fillStyle = "#0077CC66";
+        ctx.strokeStyle = "#0077CC";
+        ctx.translate(midPoint.x, midPoint.y);
+        ctx.rotate(-radians(deg));
+        ctx.translate(-midPoint.x, -midPoint.y);
+        drawParallelThroughPoint(polygon[ind1]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(polygon[0].x, polygon[0].y);
+        for (let i = 1; i < polygon.length; i++) {
+          ctx.lineTo(polygon[i].x, polygon[i].y);
+        }
+        ctx.closePath();
+
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+      }
+    </script>
+  </body>
+</html>
