@@ -63,13 +63,57 @@
           y: 121,
         },
       ];
+      let test2 = [
+        {
+          x: 206,
+          y: 210,
+        },
+        {
+          x: 226,
+          y: 272,
+        },
+        {
+          x: 319,
+          y: 262,
+        },
+        {
+          x: 234,
+          y: 204,
+        },
+      ];
       let p2 = [
         { x: 0, y: 0 },
         { x: modelScale.width, y: 0 },
         { x: modelScale.width, y: modelScale.height },
         { x: 0, y: modelScale.height },
       ];
-      drawPolygon(testPoly);
+      let test3 = [
+        {
+          x: 702,
+          y: 679,
+        },
+        {
+          x: 641,
+          y: 760,
+        },
+        {
+          x: 639,
+          y: 871,
+        },
+        {
+          x: 753,
+          y: 967,
+        },
+        {
+          x: 846,
+          y: 889,
+        },
+        {
+          x: 876,
+          y: 777,
+        },
+      ];
+      drawPolygon(test3);
       function calculatePanels(roofVertexes, baseLine) {}
       function getMidPoint(polygon) {
         let midPoint = { x: 0, y: 0 };
@@ -123,6 +167,12 @@
           dotSize
         );
       }
+      function drawHelperLine(v1, v2) {
+        ctx.strokeStyle = "#CCCCCC";
+        ctx.moveTo(v1.x, v1.y);
+        ctx.lineTo(v2.x, v2.y);
+        ctx.stroke();
+      }
       function pairwise(verteces) {
         return verteces.map((v, i) => {
           if (i < verteces.length - 1) {
@@ -133,8 +183,8 @@
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
-        let ind1 = 2,
-          ind2 = 1;
+        let ind1 = 4,
+          ind2 = 5;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getSlope(point2, point);
@@ -154,11 +204,11 @@
           rotatePolygon(polygon, 180);
           deg += 180;
         }
-        rotatePolygon(polygon, -deg);
+        //rotatePolygon(polygon, -deg);
         translatePolygon(polygon, midPoint.x, midPoint.y);
-        //ctx.translate(midPoint.x, midPoint.y);
-        //ctx.rotate(-radians(deg));
-        //ctx.translate(-midPoint.x, -midPoint.y);
+        ctx.translate(midPoint.x, midPoint.y);
+        ctx.rotate(-radians(deg));
+        ctx.translate(-midPoint.x, -midPoint.y);
 
         ctx.fillStyle = "#0077CC66";
         ctx.strokeStyle = "#0077CC";
@@ -174,13 +224,33 @@
         panels.push(path);
         // console.log(pairwise(polygon));
         let lines = pairwise(polygon);
-        for (let h = polygon[ind1].y; h >= 0; h -= panelSize.height) {
-          drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
+        let points = [];
+        points.push(polygon[ind1]);
+        points.push(polygon[ind2]);
+
+        for (
+          let h = (polygon[ind1].y -= panelSize.height);
+          h >= 0;
+          h -= panelSize.height
+        ) {
+          //drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
           lines.forEach((v) => {
             let intersetion = findIntersection(v[0], v[1], h);
             //console.log(intersetion);
-            if (intersetion) drawDot(intersetion);
+            if (intersetion) {
+              let i = 0;
+              while (i < points.length && points[i].y < intersetion.y) i++;
+              if (i == points.length) point.push(intersetion);
+              else points.splice(i, 0, intersetion);
+            }
           });
+        }
+        for (let i = 0; i < points.length; i += 2) {
+          if (i + 1 < points.length) {
+            drawDot(points[i]);
+            drawDot(points[i + 1]);
+            drawHelperLine(points[i], points[i + 1]);
+          }
         }
         ctx.fillStyle = "#FF77CC66";
         ctx.strokeStyle = "#FF77CC";
