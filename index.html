@@ -36,6 +36,8 @@
       canvas.width = modelScale.width;
       canvas.height = modelScale.height;
       function drawParallelThroughPoint(point) {
+        ctx.fillStyle = "#0077CC66";
+        ctx.strokeStyle = "#0077CC";
         ctx.beginPath();
         ctx.moveTo(0, point.y);
         ctx.lineTo(modelScale.width, point.y);
@@ -66,6 +68,7 @@
         { x: 0, y: modelScale.height },
       ];
       drawPolygon(testPoly);
+      function calculatePanels(roofVertexes, baseLine) {}
       function getMidPoint(polygon) {
         let midPoint = { x: 0, y: 0 };
         for (let i = 0; i < polygon.length; i++) {
@@ -101,7 +104,24 @@
       function getSlope(v1, v2) {
         return (Math.atan((v1.y - v2.y) / (v1.x - v2.x)) * 180) / Math.PI;
       }
+      function findIntersection(v1, v2, y) {
+        var m = (v1.y - v2.y) / (v1.x - v2.x);
+        var c = v1.y - m * v1.x;
+        var x = (y - c) / m;
+        return { x, y };
+      }
+      function drawDot(dot) {
+        ctx.fillStyle = "#FF0000";
+        var dotSize = 4;
+        ctx.fillRect(
+          dot.x - dotSize / 2,
+          dot.y - dotSize / 2,
+          dotSize,
+          dotSize
+        );
+      }
       function drawPolygon(polygon) {
+        let paths = [];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
         let ind1 = 2,
@@ -113,26 +133,41 @@
         rotatePolygon(polygon, deg);
         //rotatePolygon(polygon, -deg);
         translatePolygon(polygon, midPoint.x, midPoint.y);
+        //ctx.translate(midPoint.x, midPoint.y);
+        //ctx.rotate(-radians(deg));
+        //ctx.translate(-midPoint.x, -midPoint.y);
+
         ctx.fillStyle = "#0077CC66";
         ctx.strokeStyle = "#0077CC";
-        ctx.translate(midPoint.x, midPoint.y);
-        ctx.rotate(-radians(deg));
-        ctx.translate(-midPoint.x, -midPoint.y);
-        drawParallelThroughPoint(polygon[ind1]);
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(polygon[0].x, polygon[0].y);
+        let path = new Path2D();
+        path.moveTo(polygon[0].x, polygon[0].y);
         for (let i = 1; i < polygon.length; i++) {
-          ctx.lineTo(polygon[i].x, polygon[i].y);
+          path.lineTo(polygon[i].x, polygon[i].y);
         }
-        ctx.closePath();
 
-        ctx.fill();
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(point.x, point.y);
-        ctx.stroke();
+        paths.push(path);
+        ctx.fill(path);
+        ctx.stroke(path);
+        for (let h = polygon[ind1].y; h >= 0; h -= panelSize.height) {
+          drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
+          let intersetion = findIntersection(polygon[1], polygon[0], h);
+          console.log(intersetion);
+          drawDot(intersetion);
+        }
+        ctx.fillStyle = "#FF77CC66";
+        ctx.strokeStyle = "#FF77CC";
+        canvas.addEventListener("click", (e) => {
+          console.log(e.x, e.y);
+          let bound = canvas.getBoundingClientRect();
+          let x = e.pageX - bound.left;
+          let y = e.pageY - bound.top;
+          paths.forEach((path, index) => {
+            if (ctx.isPointInPath(path, x, y)) {
+              console.log("yuh", index);
+            }
+          });
+        });
       }
     </script>
   </body>
