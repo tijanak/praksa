@@ -31,6 +31,8 @@
       let modelScale = { height: 1024, width: 1024, samScale: 1 };
       let panelSize = { width: 40, height: 30 };
 
+      let panels = [];
+
       const canvas = document.getElementById("canvasMask");
       const ctx = canvas.getContext("2d");
       canvas.width = modelScale.width;
@@ -108,6 +110,7 @@
         var m = (v1.y - v2.y) / (v1.x - v2.x);
         var c = v1.y - m * v1.x;
         var x = (y - c) / m;
+        if (x > Math.max(v1.x, v2.x) || x < Math.min(v1.x, v2.x)) return null;
         return { x, y };
       }
       function drawDot(dot) {
@@ -120,8 +123,14 @@
           dotSize
         );
       }
+      function pairwise(verteces) {
+        return verteces.map((v, i) => {
+          if (i < verteces.length - 1) {
+            return [v, verteces[i + 1]];
+          } else return [v, verteces[0]];
+        });
+      }
       function drawPolygon(polygon) {
-        let paths = [];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
         let ind1 = 2,
@@ -129,9 +138,23 @@
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getSlope(point2, point);
+        console.log(deg);
+
         translatePolygon(polygon, -midPoint.x, -midPoint.y);
         rotatePolygon(polygon, deg);
-        //rotatePolygon(polygon, -deg);
+        let rotate = false;
+        for (let i = 0; i < polygon.length && !rotate; i++) {
+          if (Math.round(polygon[i].y) > Math.round(polygon[ind1].y)) {
+            rotate = true;
+
+            console.log(polygon[i].y, polygon[ind1].y);
+          }
+        }
+        if (rotate) {
+          rotatePolygon(polygon, 180);
+          deg += 180;
+        }
+        rotatePolygon(polygon, -deg);
         translatePolygon(polygon, midPoint.x, midPoint.y);
         //ctx.translate(midPoint.x, midPoint.y);
         //ctx.rotate(-radians(deg));
@@ -139,31 +162,32 @@
 
         ctx.fillStyle = "#0077CC66";
         ctx.strokeStyle = "#0077CC";
-        ctx.lineWidth = 2;
         let path = new Path2D();
         path.moveTo(polygon[0].x, polygon[0].y);
         for (let i = 1; i < polygon.length; i++) {
           path.lineTo(polygon[i].x, polygon[i].y);
         }
+        path.lineTo(polygon[0].x, polygon[0].y);
 
-        paths.push(path);
         ctx.fill(path);
         ctx.stroke(path);
+        panels.push(path);
+        // console.log(pairwise(polygon));
+        let lines = pairwise(polygon);
         for (let h = polygon[ind1].y; h >= 0; h -= panelSize.height) {
           drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
-          let intersetion = findIntersection(polygon[1], polygon[0], h);
-          console.log(intersetion);
-          drawDot(intersetion);
+          lines.forEach((v) => {
+            let intersetion = findIntersection(v[0], v[1], h);
+            //console.log(intersetion);
+            if (intersetion) drawDot(intersetion);
+          });
         }
         ctx.fillStyle = "#FF77CC66";
         ctx.strokeStyle = "#FF77CC";
         canvas.addEventListener("click", (e) => {
           console.log(e.x, e.y);
-          let bound = canvas.getBoundingClientRect();
-          let x = e.pageX - bound.left;
-          let y = e.pageY - bound.top;
-          paths.forEach((path, index) => {
-            if (ctx.isPointInPath(path, x, y)) {
+          panels.forEach((panel, index) => {
+            if (ctx.isPointInPath(panel, e.offsetX, e.offsetY)) {
               console.log("yuh", index);
             }
           });
