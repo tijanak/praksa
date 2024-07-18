@@ -113,7 +113,7 @@
           y: 777,
         },
       ];
-      drawPolygon(test3);
+      drawPolygon(testPoly);
       function calculatePanels(roofVertexes, baseLine) {}
       function getMidPoint(polygon) {
         let midPoint = { x: 0, y: 0 };
@@ -130,7 +130,7 @@
       }
       function rotatePolygon(polygon, degree) {
         degree = radians(degree);
-        console.log(polygon);
+        //console.log(polygon);
         for (let i = 0; i < polygon.length; i++) {
           let vertexX = polygon[i].x,
             vertexY = polygon[i].y;
@@ -139,7 +139,7 @@
           polygon[i].y =
             vertexX * Math.sin(degree) + vertexY * Math.cos(degree);
         }
-        console.log(polygon);
+        //console.log(polygon);
       }
       function translatePolygon(polygon, x, y) {
         for (let i = 0; i < polygon.length; i++) {
@@ -183,8 +183,8 @@
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
-        let ind1 = 4,
-          ind2 = 5;
+        let ind1 = 3,
+          ind2 = 0;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getSlope(point2, point);
@@ -227,35 +227,33 @@
         let points = [];
         points.push(polygon[ind1]);
         points.push(polygon[ind2]);
-
         for (
-          let h = (polygon[ind1].y -= panelSize.height);
+          let h = polygon[ind1].y - panelSize.height;
           h >= 0;
           h -= panelSize.height
         ) {
-          //drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
+          drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
           lines.forEach((v) => {
             let intersetion = findIntersection(v[0], v[1], h);
             //console.log(intersetion);
             if (intersetion) {
-              let i = 0;
-              while (i < points.length && points[i].y < intersetion.y) i++;
-              if (i == points.length) point.push(intersetion);
-              else points.splice(i, 0, intersetion);
+              points.push(intersetion);
             }
           });
         }
+        console.log(polygon[ind1], polygon[ind2], points);
         for (let i = 0; i < points.length; i += 2) {
           if (i + 1 < points.length) {
             drawDot(points[i]);
             drawDot(points[i + 1]);
+            console.log(points[i], points[i + 1]);
             drawHelperLine(points[i], points[i + 1]);
           }
         }
         ctx.fillStyle = "#FF77CC66";
         ctx.strokeStyle = "#FF77CC";
         canvas.addEventListener("click", (e) => {
-          console.log(e.x, e.y);
+          console.log(e.offsetX, e.offsetY);
           panels.forEach((panel, index) => {
             if (ctx.isPointInPath(panel, e.offsetX, e.offsetY)) {
               console.log("yuh", index);
