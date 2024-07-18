@@ -139,7 +139,7 @@
           y: 321,
         },
       ];
-      drawPolygon(testPoly);
+      drawPolygon(random);
       function calculatePanels(roofVertexes, baseLine) {}
       function getMidPoint(polygon) {
         let midPoint = { x: 0, y: 0 };
@@ -214,8 +214,8 @@
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
-        let ind1 = 3,
-          ind2 = 2;
+        let ind1 = 4,
+          ind2 = 5;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getSlope(point2, point);
@@ -249,11 +249,11 @@
         panels.push(path);
         // console.log(pairwise(polygon));
         let lines = pairwise(polygon);
-        let points = [];
-        points.push(polygon[ind1]);
-        points.push(polygon[ind2]);
-        for (let h = polygon[ind1].y; h >= minY; h -= panelSize.height) {
+        let intersections = [];
+        for (let h = minY; h < polygon[ind1].y; h += panelSize.height) {
           //drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
+          console.log(h);
+          let points = [];
           lines.forEach((v) => {
             let intersetion = findIntersection(v[0], v[1], h);
             //console.log(intersetion);
@@ -261,9 +261,12 @@
               points.push(intersetion);
             }
           });
+          intersections.push(points);
         }
         for (let h = polygon[ind1].y; h <= maxY; h += panelSize.height) {
           //drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
+          console.log(h);
+          let points = [];
           lines.forEach((v) => {
             let intersetion = findIntersection(v[0], v[1], h);
             //console.log(intersetion);
@@ -271,16 +274,17 @@
               points.push(intersetion);
             }
           });
+          intersections.push(points);
         }
-        console.log(polygon[ind1], polygon[ind2], points);
-        points = points.sort((a, b) => a.y - b.y);
-        console.log(points);
-        for (let i = 0; i < points.length; i += 2) {
-          if (i + 1 < points.length) {
-            drawDot(points[i]);
-            drawDot(points[i + 1]);
-            console.log(points[i], points[i + 1]);
-            drawHelperLine(points[i], points[i + 1]);
+        //console.log(polygon[ind1], polygon[ind2], intersections);
+        //intersections = intersections.sort((a, b) => a.y - b.y);
+        console.log(intersections);
+        for (let i = 0; i < intersections.length; i++) {
+          for (let j = 0; j < intersections[i].length - 1; j++) {
+            drawDot(intersections[i][j]);
+            drawDot(intersections[i][j + 1]);
+            //console.log(intersections[i][j], intersections[i][j + 1]);
+            drawHelperLine(intersections[i][j], intersections[i][j + 1]);
           }
         }
         ctx.fillStyle = "#FF77CC66";
