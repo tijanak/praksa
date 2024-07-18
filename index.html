@@ -139,7 +139,7 @@
           y: 321,
         },
       ];
-      drawPolygon(random);
+      drawPolygon(testPoly);
       function calculatePanels(roofVertexes, baseLine) {}
       function getMidPoint(polygon) {
         let midPoint = { x: 0, y: 0 };
@@ -209,7 +209,7 @@
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
-        let ind1 = 3,
+        let ind1 = 1,
           ind2 = 2;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
@@ -219,17 +219,17 @@
         translatePolygon(polygon, -midPoint.x, -midPoint.y);
         rotatePolygon(polygon, deg);
 
-        //rotatePolygon(polygon, -deg);
         translatePolygon(polygon, midPoint.x, midPoint.y);
         let ys = polygon.map((v) => v.y);
         console.log(ys);
         let maxY = Math.max(...ys);
+        let minY = Math.min(...ys);
         let deltaY = polygon[ind1].y - maxY;
-        translatePolygon(polygon, 0, deltaY);
+        //translatePolygon(polygon, 0, deltaY);
         ctx.translate(midPoint.x, midPoint.y);
         ctx.rotate(-radians(deg));
         ctx.translate(-midPoint.x, -midPoint.y);
-        ctx.translate(0, -deltaY);
+        // ctx.translate(0, -deltaY);
 
         ctx.fillStyle = "#0077CC66";
         ctx.strokeStyle = "#0077CC";
@@ -248,7 +248,17 @@
         let points = [];
         points.push(polygon[ind1]);
         points.push(polygon[ind2]);
-        for (let h = maxY; h >= 0; h -= panelSize.height) {
+        for (let h = polygon[ind1].y; h >= minY; h -= panelSize.height) {
+          drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
+          lines.forEach((v) => {
+            let intersetion = findIntersection(v[0], v[1], h);
+            //console.log(intersetion);
+            if (intersetion) {
+              points.push(intersetion);
+            }
+          });
+        }
+        for (let h = polygon[ind1].y; h <= maxY; h += panelSize.height) {
           drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
           lines.forEach((v) => {
             let intersetion = findIntersection(v[0], v[1], h);
@@ -259,6 +269,8 @@
           });
         }
         console.log(polygon[ind1], polygon[ind2], points);
+        points = points.sort((a, b) => a.y - b.y);
+        console.log(points);
         for (let i = 0; i < points.length; i += 2) {
           if (i + 1 < points.length) {
             drawDot(points[i]);
