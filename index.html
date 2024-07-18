@@ -174,11 +174,16 @@
         }
       }
       function getSlope(v1, v2) {
+        var kol = v1.x - v2.x;
+        if (kol == null) return 0;
         return (Math.atan((v1.y - v2.y) / (v1.x - v2.x)) * 180) / Math.PI;
       }
       function findIntersection(v1, v2, y) {
-        var m = (v1.y - v2.y) / (v1.x - v2.x);
+        var kol = v1.x - v2.x;
+        if (kol == null) return null;
+        var m = (v1.y - v2.y) / kol;
         var c = v1.y - m * v1.x;
+        if (m == 0) return null;
         var x = (y - c) / m;
         if (x > Math.max(v1.x, v2.x) || x < Math.min(v1.x, v2.x)) return null;
         return { x, y };
@@ -209,7 +214,7 @@
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
-        let ind1 = 1,
+        let ind1 = 3,
           ind2 = 2;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
@@ -224,7 +229,6 @@
         console.log(ys);
         let maxY = Math.max(...ys);
         let minY = Math.min(...ys);
-        let deltaY = polygon[ind1].y - maxY;
         //translatePolygon(polygon, 0, deltaY);
         ctx.translate(midPoint.x, midPoint.y);
         ctx.rotate(-radians(deg));
@@ -249,7 +253,7 @@
         points.push(polygon[ind1]);
         points.push(polygon[ind2]);
         for (let h = polygon[ind1].y; h >= minY; h -= panelSize.height) {
-          drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
+          //drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
           lines.forEach((v) => {
             let intersetion = findIntersection(v[0], v[1], h);
             //console.log(intersetion);
@@ -259,7 +263,7 @@
           });
         }
         for (let h = polygon[ind1].y; h <= maxY; h += panelSize.height) {
-          drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
+          //drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
           lines.forEach((v) => {
             let intersetion = findIntersection(v[0], v[1], h);
             //console.log(intersetion);
