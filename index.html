@@ -156,7 +156,6 @@
       }
       function rotatePolygon(polygon, degree) {
         degree = radians(degree);
-        //console.log(polygon);
         for (let i = 0; i < polygon.length; i++) {
           let vertexX = polygon[i].x,
             vertexY = polygon[i].y;
@@ -165,7 +164,6 @@
           polygon[i].y =
             vertexX * Math.sin(degree) + vertexY * Math.cos(degree);
         }
-        //console.log(polygon);
       }
       function translatePolygon(polygon, x, y) {
         for (let i = 0; i < polygon.length; i++) {
@@ -211,6 +209,36 @@
           } else return [v, verteces[0]];
         });
       }
+      function findIntersectionsAtY(polygonLines, y) {
+        let points = [];
+        polygonLines.forEach((v) => {
+          let intersetion = findIntersection(v[0], v[1], y);
+          if (intersetion) {
+            points.push(intersetion);
+          }
+        });
+        return points;
+      }
+      function getAllIntersections(polygon, baseLineY, lineDistance) {
+        let minMaxY = getMinMaxY(polygon);
+        let polygonMaxY = minMaxY.maxY;
+        let polygonMinY = minMaxY.minY;
+        let polygonLines = pairwise(polygon);
+        let intersections = [];
+        for (let h = polygonMinY; h < baseLineY; h += lineDistance) {
+          intersections.push(findIntersectionsAtY(polygonLines, h));
+        }
+        for (let h = baseLineY; h <= polygonMaxY; h += lineDistance) {
+          intersections.push(findIntersectionsAtY(polygonLines, h));
+        }
+        return intersections;
+      }
+      function getMinMaxY(polygon) {
+        let ys = polygon.map((v) => v.y);
+        let maxY = Math.max(...ys);
+        let minY = Math.min(...ys);
+        return { maxY, minY };
+      }
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
@@ -219,20 +247,14 @@
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getSlope(point2, point);
-        console.log(deg);
 
         translatePolygon(polygon, -midPoint.x, -midPoint.y);
         rotatePolygon(polygon, deg);
 
         translatePolygon(polygon, midPoint.x, midPoint.y);
-        let ys = polygon.map((v) => v.y);
-        console.log(ys);
-        let maxY = Math.max(...ys);
-        let minY = Math.min(...ys);
-        //translatePolygon(polygon, 0, deltaY);
-        ctx.translate(midPoint.x, midPoint.y);
-        ctx.rotate(-radians(deg));
-        ctx.translate(-midPoint.x, -midPoint.y);
+        //ctx.translate(midPoint.x, midPoint.y);
+        //ctx.rotate(-radians(deg));
+        //ctx.translate(-midPoint.x, -midPoint.y);
         // ctx.translate(0, -deltaY);
 
         ctx.fillStyle = "#0077CC66";
@@ -247,43 +269,16 @@
         ctx.fill(path);
         ctx.stroke(path);
         panels.push(path);
-        // console.log(pairwise(polygon));
         let lines = pairwise(polygon);
-        let intersections = [];
-        for (let h = minY; h < polygon[ind1].y; h += panelSize.height) {
-          //drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
-          console.log(h);
-          let points = [];
-          lines.forEach((v) => {
-            let intersetion = findIntersection(v[0], v[1], h);
-            //console.log(intersetion);
-            if (intersetion) {
-              points.push(intersetion);
-            }
-          });
-          intersections.push(points);
-        }
-        for (let h = polygon[ind1].y; h <= maxY; h += panelSize.height) {
-          //drawParallelThroughPoint({ x: polygon[ind1].x, y: h });
-          console.log(h);
-          let points = [];
-          lines.forEach((v) => {
-            let intersetion = findIntersection(v[0], v[1], h);
-            //console.log(intersetion);
-            if (intersetion) {
-              points.push(intersetion);
-            }
-          });
-          intersections.push(points);
-        }
-        //console.log(polygon[ind1], polygon[ind2], intersections);
-        //intersections = intersections.sort((a, b) => a.y - b.y);
-        console.log(intersections);
+        let intersections = getAllIntersections(
+          polygon,
+          polygon[ind1].y,
+          panelSize.height
+        );
         for (let i = 0; i < intersections.length; i++) {
           for (let j = 0; j < intersections[i].length - 1; j++) {
             drawDot(intersections[i][j]);
             drawDot(intersections[i][j + 1]);
-            //console.log(intersections[i][j], intersections[i][j + 1]);
             drawHelperLine(intersections[i][j], intersections[i][j + 1]);
           }
         }
@@ -293,7 +288,7 @@
           console.log(e.offsetX, e.offsetY);
           panels.forEach((panel, index) => {
             if (ctx.isPointInPath(panel, e.offsetX, e.offsetY)) {
-              console.log("yuh", index);
+              console.log("kliknut", index);
             }
           });
         });
