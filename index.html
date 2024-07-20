@@ -415,7 +415,7 @@
           rightBound: Math.min(lowerPointsX[1], upperPointsX[1]),
         };
       }
-      function getPanelPlacementAreas(
+      function getAvailablePanelPlacementAreas(
         lowerY,
         lowerXValues,
         upperY,
@@ -423,13 +423,16 @@
       ) {
         let lowerPairs = combineIntersectionPairs(lowerXValues);
         let upperPairs = combineIntersectionPairs(upperxValues);
+        console.log(lowerPairs);
+        console.log(upperPairs);
         let lowerInd = 0,
           upperInd = 0;
         while (lowerInd < lowerPairs.length && upperInd < upperPairs.length) {
           let xBounds = getXBounds(lowerPairs[lowerInd], upperPairs[upperInd]);
-          if (xBounds.rightBound == lowerPairs[lowerInd]) {
+          if (xBounds.rightBound >= lowerPairs[lowerInd][1]) {
             lowerInd++;
-          } else {
+          }
+          if (xBounds.rightBound >= upperPairs[upperInd][1]) {
             upperInd++;
           }
           ctx.rect(
@@ -442,7 +445,7 @@
           ctx.stroke();
         }
       }
-      drawPolygon(random);
+      drawPolygon(test3);
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let ind1 = 0,
@@ -477,7 +480,7 @@
         drawScanLines(intersections);
         let sortedKeys = sortedNumberKeys(intersections);
         for (let i = 0; i < sortedKeys.length - 1; i++) {
-          getPanelPlacementAreas(
+          getAvailablePanelPlacementAreas(
             sortedKeys[i],
             intersections.get(sortedKeys[i]),
             sortedKeys[i + 1],
