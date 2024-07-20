@@ -135,7 +135,16 @@
             y: 321,
           },
         ],
-
+        [
+          { x: 910, y: 535 },
+          { x: 932, y: 471 },
+          { x: 877, y: 440 },
+          { x: 822, y: 551 },
+          { x: 999, y: 614 },
+          { x: 1020, y: 521 },
+          { x: 980, y: 509 },
+          { x: 973, y: 563 },
+        ],
         [
           {
             x: 339,
@@ -177,9 +186,11 @@
         ],
       ];
       // #endregion
+      //main();
+      //test(1);
       main();
       function main() {
-        processRoof(ctx, testPolygons[0], 0);
+        processRoof(ctx, testPolygons[4], 0);
       }
 
       function processRoof(ctx, roofVerteces, baseLineIndex) {
@@ -220,6 +231,7 @@
 
         //ukljucivanje/iskljucivanje panela
         canvas.addEventListener("click", (e) => {
+          console.log(e.offsetX, e.offsetY);
           panelPlacement.panels.forEach((panel, index) => {
             if (ctx.isPointInPath(panel.path, e.offsetX, e.offsetY)) {
               panelPlacement.panels[index].selected =
@@ -370,9 +382,7 @@
               edgeTable.set(Math.round(min.y), edge);
             }
           } else {
-            //linije paralelne sa x osom ne ukljucujemo u scan line
-            //ali za neke slucajeve je potrebno
-            //dodati naknadno temena nekih od njih pa ih prenosimo
+            //linije paralelne sa osnovnom treba posebno obraditi jer bi odmah bile izbacene po filtriranju tabele aktivnih ivica
             edgeTable.get(parallellsKey).push(line);
           }
         });
@@ -438,26 +448,13 @@
           adjustX(aet);
         }
         //obrada linija koje su paralelne sa osnovnom
-        //resava neke slucajeve sa konkavnim poligonima
         let parallels = edgeTable.get(parallellsKey);
         parallels.forEach((line) => {
           if (intersections.has(Math.round(line[0].y))) {
-            //ako je paralela na sken liniji, proveravamo da li su joj temena u rezultatu
+            //ako je na scan liniji, treba dodati njena temena
             let vertexes = intersections.get(Math.round(line[0].y));
-            let containsFirstVertex =
-              vertexes
-                .map((v) => Math.round(v))
-                .find((v) => v == Math.round(line[0].x)) != undefined;
-            let containsSecondVertex =
-              vertexes
-                .map((v) => Math.round(v))
-                .find((v) => v == Math.round(line[1].x)) != undefined;
-
-            if (!(containsFirstVertex && containsSecondVertex)) {
-              //ako je samo jedna o
-              vertexes.push(line[0].x);
-              vertexes.push(line[1].x);
-            }
+            vertexes.push(line[0].x);
+            vertexes.push(line[1].x);
           }
         });
         intersections.forEach((xValues) => {
