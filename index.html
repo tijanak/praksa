@@ -224,69 +224,93 @@
         points.sort((a, b) => a.x - b.x);
         return points;
       }
+
+      function iterateThroughtList(start, cbFunc) {
+        let node = start;
+        while (node != null) {
+          cbFunc(node);
+          node = node.next;
+        }
+      }
+      function adjustX(node) {
+        iterateThroughtList(node, (n) => (n.xTek += n.slope));
+      }
+      function filterList(start, cond) {
+        let prev = null;
+        let node = start;
+        while (node != null) {
+          if (cond(node)) {
+            if (prev == null) {
+              start = node.next;
+            } else {
+              prev.next = node.next;
+            }
+          }
+          prev = node;
+          node = node.next;
+        }
+        return start;
+      }
+      function addToList(aet, edge) {
+        if (aet == null) return edge;
+        current = aet;
+        prev = null;
+        while (current != null && current.xTek < edge.xTek) {
+          prev = current;
+
+          current = current.next;
+        }
+        edge.next = current;
+        if (prev == null) aet = edge;
+        else prev.next = edge;
+        return aet;
+      }
+      function addNewEdges(aet, newEdges) {
+        let newList = aet;
+        iterateThroughtList(newEdges, (node) => {
+          newList = addToList(aet, node);
+        });
+        return aet;
+      }
       function makeEdgeTable(polyon) {
         let edgeTable = new Map();
         let lines = pairwise(polyon);
         lines.forEach((line) => {
           let max = line[0],
-            min = line[1],
-            maxX = line[0].x,
-            minX = line[1].x;
+            min = line[1];
           if (line[0].y < line[1].y) {
             max = line[1];
             min = line[0];
           }
-          if (maxX < minX) {
-            maxX = line[1].x;
-            minX = line[0].x;
-          }
           let slope = getSlope(line[0], line[1]);
+          if (slope != 0) {
+            slope = 1 / slope;
+          }
           let edge = {
             ymax: max.y,
-            ymin: min.y,
-            xmax: maxX,
-            xmin: minX,
-            xTek: minX,
-            slope: 1 / slope,
+            xTek: min.x,
+            slope: slope,
             next: null,
           };
+          let secondEdge = null;
+          if (slope == 0) {
+            secondEdge = {
+              ymax: max.y,
+              xTek: max.x,
+              slope: slope,
+              next: null,
+            };
+          }
           if (edgeTable.has(Math.round(min.y))) {
-            let currentEdge = edgeTable.get(Math.round(min.y));
-            let previous = null;
-            while (currentEdge != null && currentEdge.xTek < edge.xTek) {
-              previous = currentEdge;
-              currentEdge = currentEdge.next;
-            }
-            edge.next = currentEdge;
-            if (previous != null) {
-              previous.next = edge;
-            } else {
-              edgeTable.set(Math.round(min.y), edge);
-            }
+            let edges = edgeTable.get(Math.round(min.y));
+            let newList = addToList(edges, edge);
+            if (secondEdge != null) newList = addToList(newList, secondEdge);
+            edgeTable.set(Math.round(min.y), newList);
           } else {
+            edge.next = secondEdge;
             edgeTable.set(Math.round(min.y), edge);
           }
-
-          if (max.y != min.y) {
-            let newEdge = Object.assign({}, edge);
-            newEdge.next = null;
-            if (edgeTable.has(Math.round(max.y))) {
-              let currentEdge = edgeTable.get(Math.round(max.y));
-              let previous = null;
-              while (currentEdge != null && currentEdge.xTek < newEdge.xTek) {
-                previous = currentEdge;
-                currentEdge = currentEdge.next;
-              }
-              newEdge.next = currentEdge;
-              if (previous != null) {
-                previous.next = newEdge;
-              } else {
-                edgeTable.set(Math.round(max.y), newEdge);
-              }
-            } else {
-              edgeTable.set(Math.round(max.y), newEdge);
-            }
-          }
+          console.log(line, edgeTable);
         });
         return edgeTable;
       }
@@ -296,118 +320,44 @@
         let polygonMinY = minMaxY.minY;
 
         let edgeTable = makeEdgeTable(polygon);
-        console.log(edgeTable);
         let intersections = [];
         let aet = null;
-        for (let h = baseLineY; h >= polygonMinY; h -= 1) {
-          let points = [];
-          if (aet == null) {
-            aet = structuredClone(edgeTable.get(Math.round(polygonMinY)));
-            let e = aet;
-            while (e != null) {
-              e.xTek = e.xmin;
-              e = e.next;
-            }
-          } else {
-            let e = aet;
-            while (e != null) {
-              e.xTek += e.slope;
-              e = e.next;
-            }
-            console.log(h);
-            if (edgeTable.has(Math.round(h))) {
-              console.log("help");
-              let newEdges = structuredClone(edgeTable.get(Math.round(h)));
-              let edge = newEdges;
-              while (edge != null) {
-                edge.xTek = edge.xmin;
-                // edge.xTek = edge.xTek -= edge.slope;
-                edge = edge.next;
-              }
-              newEdges.next = aet;
-              aet = newEdges;
-            }
-            /*for (let i = h + lineDistance; i >= h; i--) {
-              if (edgeTable.has(i)) {
-                let newEdges = structuredClone(edgeTable.get(i));
-                let edge = newEdges;
-                while (edge != null) {
-                  edge.xTek = edge.xmax;
-                  edge.xTek = edge.xTek -= edge.slope * (i - h);
-                  edge = edge.next;
-                }
-                newEdges.next = aet;
-                aet = newEdges;
-              }
-            }*/
-          }
-          e = aet;
-          let prev = null;
-          while (e != null) {
-            if (e.ymin > h) {
-              if (prev != null) {
-                prev.next = e.next;
-              } else {
-                aet = e.next;
-                prev = null;
-              }
-            } else {
-              points.push({ x: e.xTek, y: h });
-            }
-            prev = e;
-            e = e.next;
-          }
-          points.sort((a, b) => a.x - b.x);
-          intersections.push(points);
-        }
+        let deltaY = Math.floor((baseLineY - polygonMinY) / lineDistance);
+        let startY = Math.round(baseLineY - deltaY * lineDistance);
         console.log(edgeTable);
-        return intersections;
-        aet = null;
-        for (let h = baseLineY; h <= polygonMaxY; h += lineDistance) {
-          let points = [];
-          if (aet == null) {
-            aet = structuredClone(edgeTable.get(polygonMaxY));
-          } else {
-            let e = aet;
-            while (e != null) {
-              e.xTek -= e.slope * lineDistance;
-              e = e.next;
-            }
-            for (let i = h - lineDistance; i < h; i++) {
-              if (edgeTable.has(i)) {
-                let newEdges = structuredClone(edgeTable.get(i));
-                let edge = newEdges;
-                while (edge != null) {
-                  edge.xTek = edge.xTek += edge.slope * (h - i);
-                  edge = edge.next;
-                }
-                newEdges.next = aet;
-                aet = newEdges;
-              }
-            }
+        for (let y = Math.round(polygonMinY); y < Math.round(startY); y++) {
+          //console.log(y);
+          if (edgeTable.has(y)) {
+            let newEdges = edgeTable.get(y);
+            aet = addToList(aet, newEdges);
           }
-          e = aet;
-          let prev = null;
-          while (e != null) {
-            if (e.ymax > h) {
-              if (prev != null) {
-                prev.next = e.next;
-              } else {
-                aet = e.next;
-                prev = aet;
-              }
-            } else {
-              points.push({ x: e.xTek, y: h });
-            }
-            prev = e;
-            e = e.next;
+        }
+        console.log(aet);
+        for (let y = Math.round(startY); y <= Math.round(polygonMaxY); y++) {
+          aet = filterList(aet, (node) => node.ymax <= y);
+          adjustX(aet);
+          if (edgeTable.has(y)) {
+            let newEdges = edgeTable.get(y);
+            iterateThroughtList(newEdges, (edge) => {
+              aet = addToList(aet, {
+                ymax: edge.ymax,
+                xTek: edge.xTek,
+                slope: edge.slope,
+                next: null,
+              });
+            });
           }
-          points.sort((a, b) => a.x - b.x);
-          intersections.push(points);
+          if (Number.isInteger((y - startY) / lineDistance)) {
+            let points = [];
+            iterateThroughtList(aet, (node) =>
+              points.push({ x: node.xTek, y })
+            );
+            intersections.push(points);
+          }
         }
         return intersections;
       }
-      function getAllIntersections(polygon, baseLineY, lineDistance) {
+      function getIntersections(polygon, baseLineY, lineDistance) {
         let minMaxY = getMinMaxY(polygon);
         let polygonMaxY = minMaxY.maxY;
         let polygonMinY = minMaxY.minY;
@@ -443,8 +393,8 @@
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
-        let ind1 = 0,
-          ind2 = 5;
+        let ind1 = 2,
+          ind2 = 3;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getAngle(point2, point);
