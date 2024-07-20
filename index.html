@@ -31,6 +31,7 @@
       let modelScale = { height: 1024, width: 1024, samScale: 1 };
       let panelSize = { width: 40, height: 30 };
 
+      let parallellsKey = "slope0";
       let panels = [];
       const canvas = document.getElementById("canvasMask");
       const ctx = canvas.getContext("2d");
@@ -139,7 +140,6 @@
           y: 321,
         },
       ];
-      drawPolygon(random);
       function calculatePanels(roofVertexes, baseLine) {}
       function getMidPoint(polygon) {
         let midPoint = { x: 0, y: 0 };
@@ -179,16 +179,6 @@
         if (kol == null) return 0;
         return (v1.y - v2.y) / kol;
       }
-      function findIntersectionWithParallelToX(v1, v2, y) {
-        var kol = v1.x - v2.x;
-        if (kol == null) return null;
-        var m = (v1.y - v2.y) / kol;
-        var c = v1.y - m * v1.x;
-        if (m == 0) return null;
-        var x = (y - c) / m;
-        if (x > Math.max(v1.x, v2.x) || x < Math.min(v1.x, v2.x)) return null;
-        return { x, y };
-      }
       function drawDot(dot) {
         ctx.fillStyle = "#FF0000";
         var dotSize = 4;
@@ -212,19 +202,6 @@
           } else return [v, verteces[0]];
         });
       }
-      function findIntersectionsAtY(edges, y) {
-        let points = [];
-        edges.forEach((v) => {
-          let intersetion = findIntersectionWithParallelToX(v[0], v[1], y);
-          if (intersetion) {
-            points.push(intersetion);
-          } else {
-          }
-        });
-        points.sort((a, b) => a.x - b.x);
-        return points;
-      }
-
       function iterateThroughtList(start, cbFunc) {
         let node = start;
         while (node != null) {
@@ -272,10 +249,12 @@
         });
         return aet;
       }
+
       function makeEdgeTable(polyon) {
         let edgeTable = new Map();
         let lines = pairwise(polyon);
-        lines.forEach((line) => {
+        edgeTable.set(parallellsKey, []);
+        lines.forEach((line, i) => {
           let max = line[0],
             min = line[1];
           if (line[0].y < line[1].y) {
@@ -285,59 +264,65 @@
           let slope = getSlope(line[0], line[1]);
           if (slope != 0) {
             slope = 1 / slope;
-          }
-          let edge = {
-            ymax: max.y,
-            xTek: min.x,
-            slope: slope,
-            next: null,
-          };
-          let secondEdge = null;
+
+            let edge = {
+              id: i,
+              ymax: max.y,
+              xTek: min.x,
+              slope: slope,
+              next: null,
+            };
+            /*let secondEdge = null;
           if (slope == 0) {
             secondEdge = {
+              id: i,
               ymax: max.y,
               xTek: max.x,
               slope: slope,
               next: null,
             };
-          }
-          if (edgeTable.has(Math.round(min.y))) {
-            let edges = edgeTable.get(Math.round(min.y));
-            let newList = addToList(edges, edge);
-            if (secondEdge != null) newList = addToList(newList, secondEdge);
-            edgeTable.set(Math.round(min.y), newList);
+          }*/
+            if (edgeTable.has(Math.round(min.y))) {
+              let edges = edgeTable.get(Math.round(min.y));
+              let newList = addToList(edges, edge);
+              // if (secondEdge != null) newList = addToList(newList, secondEdge);
+              // console.log(i, newList, secondEdge);
+              edgeTable.set(Math.round(min.y), newList);
+            } else {
+              //console.log(i, secondEdge);
+              //edge.next = secondEdge;
+              edgeTable.set(Math.round(min.y), edge);
+            }
           } else {
-            edge.next = secondEdge;
-            edgeTable.set(Math.round(min.y), edge);
+            edgeTable.get(parallellsKey).push(line);
           }
         });
         return edgeTable;
       }
-      function getIntersectionsV2(polygon, baseLineY, lineDistance) {
+      function getIntersections(polygon, baseLineY, lineDistance) {
         let minMaxY = getMinMaxY(polygon);
         let polygonMaxY = minMaxY.maxY;
         let polygonMinY = minMaxY.minY;
 
         let edgeTable = makeEdgeTable(polygon);
-        let intersections = [];
+        let intersections = new Map();
         let aet = null;
         let deltaY = Math.floor((baseLineY - polygonMinY) / lineDistance);
         let startY = Math.round(baseLineY - deltaY * lineDistance);
-        console.log(edgeTable);
         for (let y = Math.round(polygonMinY); y < Math.round(startY); y++) {
           if (edgeTable.has(y)) {
             let newEdges = edgeTable.get(y);
             aet = addToList(aet, newEdges);
           }
+
           adjustX(aet);
         }
         for (let y = Math.round(startY); y <= Math.round(polygonMaxY); y++) {
-          aet = filterList(aet, (node) => node.ymax <= y);
-          adjustX(aet);
           if (edgeTable.has(y)) {
             let newEdges = edgeTable.get(y);
             iterateThroughtList(newEdges, (edge) => {
               aet = addToList(aet, {
+                id: edge.id,
                 ymax: edge.ymax,
                 xTek: edge.xTek,
                 slope: edge.slope,
@@ -345,33 +330,40 @@
               });
             });
           }
+          aet = filterList(aet, (node) => {
+            return Math.round(node.ymax) <= y;
+          });
           if (Number.isInteger((y - startY) / lineDistance)) {
             let points = [];
-            iterateThroughtList(aet, (node) =>
-              points.push({ x: node.xTek, y })
-            );
-            intersections.push(points);
+            iterateThroughtList(aet, (node) => {
+              points.push(Math.round(node.xTek));
+            });
+            intersections.set(y, points);
           }
+
+          adjustX(aet);
         }
-        return intersections;
-      }
-      function getIntersections(polygon, baseLineY, lineDistance) {
-        let minMaxY = getMinMaxY(polygon);
-        let polygonMaxY = minMaxY.maxY;
-        let polygonMinY = minMaxY.minY;
-        let polygonLines = pairwise(polygon);
-        let intersections = [];
-        for (let h = baseLineY; h >= polygonMinY; h -= lineDistance) {
-          intersections.push(findIntersectionsAtY(polygonLines, h));
-        }
-        intersections = intersections.reverse();
-        for (
-          let h = baseLineY + lineDistance;
-          h <= polygonMaxY;
-          h += lineDistance
-        ) {
-          intersections.push(findIntersectionsAtY(polygonLines, h));
-        }
+        let parallels = edgeTable.get(parallellsKey);
+        parallels.forEach((line) => {
+          if (intersections.has(Math.round(line[0].y))) {
+            let vertexes = intersections.get(Math.round(line[0].y));
+            let containsFirstVertex =
+              vertexes
+                .map((v) => Math.round(v))
+                .find((v) => v == Math.round(line[0].x)) != undefined;
+            let containsSecondVertex =
+              vertexes
+                .map((v) => Math.round(v))
+                .find((v) => v == Math.round(line[1].x)) != undefined;
+            if (containsFirstVertex ^ containsSecondVertex) {
+              vertexes.push(line[0].x);
+              vertexes.push(line[1].x);
+            }
+          }
+        });
+        intersections.forEach((xValues) => {
+          xValues.sort();
+        });
         return intersections;
       }
       function getMinMaxY(polygon) {
@@ -379,6 +371,12 @@
         let maxY = Math.max(...ys);
         let minY = Math.min(...ys);
         return { maxY, minY };
+      }
+      function getPanelsInBetween(lowerYPoints, upperYpoints) {}
+      function rotateCanvas(ctx, deg, rotationCenter) {
+        ctx.translate(rotationCenter.x, rotationCenter.y);
+        ctx.rotate(-radians(deg));
+        ctx.translate(-rotationCenter.x, -rotationCenter.y);
       }
       function isDotInRectangle(upperLeftCorner, lowerRighCorner, dot) {
         return (
@@ -388,23 +386,22 @@
           dot.y > upperLeftCorner.y
         );
       }
+
+      drawPolygon(test3);
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
-        let ind1 = 0,
-          ind2 = 5;
+        let ind1 = 3,
+          ind2 = 2;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getAngle(point2, point);
 
         translatePolygon(polygon, -midPoint.x, -midPoint.y);
         rotatePolygon(polygon, deg);
-
         translatePolygon(polygon, midPoint.x, midPoint.y);
-        //ctx.translate(midPoint.x, midPoint.y);
-        //ctx.rotate(-radians(deg));
-        //ctx.translate(-midPoint.x, -midPoint.y);
-        // ctx.translate(0, -deltaY);
+
+        //rotateCanvas(ctx, deg, midPoint);
 
         ctx.fillStyle = "#0077CC66";
         ctx.strokeStyle = "#0077CC";
@@ -419,19 +416,29 @@
         ctx.stroke(path);
         panels.push(path);
         let lines = pairwise(polygon);
-        let intersections = getIntersectionsV2(
+        polygon.forEach((v) => {
+          v.x = Math.round(v.x);
+          v.y = Math.round(v.y);
+        });
+        let intersections = getIntersections(
           polygon,
           polygon[ind1].y,
           panelSize.height
         );
         console.log(intersections);
-        for (let i = 0; i < intersections.length; i++) {
-          for (let j = 0; j < intersections[i].length - 1; j++) {
-            drawDot(intersections[i][j]);
-            drawDot(intersections[i][j + 1]);
-            drawHelperLine(intersections[i][j], intersections[i][j + 1]);
+        intersections.forEach((xValues, y) => {
+          if (xValues.length % 2 != 0) console.log("BRUHHHHHH");
+          for (let j = 0; j < xValues.length - 1; j += 2) {
+            if (j + 1 < xValues.length) {
+              drawDot({ x: xValues[j], y: y });
+              drawDot({ x: xValues[j + 1], y: y });
+              drawHelperLine(
+                { x: xValues[j], y: y },
+                { x: xValues[j + 1], y: y }
+              );
+            }
           }
-        }
+        });
         ctx.fillStyle = "#FF77CC66";
         ctx.strokeStyle = "#FF77CC";
         canvas.addEventListener("click", (e) => {
