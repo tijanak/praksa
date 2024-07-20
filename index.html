@@ -135,7 +135,6 @@
           y: 321,
         },
       ];
-      function calculatePanels(roofVertexes, baseLine) {}
       function getMidPoint(polygon) {
         let midPoint = { x: 0, y: 0 };
         for (let i = 0; i < polygon.length; i++) {
@@ -459,25 +458,74 @@
           x + panelSizeX <= placementArea.rightBound;
           x += panelSizeX
         ) {
-          console.log(x);
           panels.push({
             x: x + panelSizeX / 2,
             y: (placementArea.upperY + placementArea.lowerY) / 2,
           });
         }
-        console.log(panels);
         return panels;
+      }
+      function getPanels(roofPolygon, baseLineFirstIndex, w, h) {
+        let calculatedPanels = [];
+
+        let lines = getLines(roofPolygon);
+        roofPolygon.forEach((v) => {
+          v.x = Math.round(v.x);
+          v.y = Math.round(v.y);
+        });
+        let intersections = getIntersections(
+          roofPolygon,
+          roofPolygon[baseLineFirstIndex].y,
+          h
+        );
+        // drawScanLines(intersections);
+        let placementAreas = getPlacementAreas(intersections);
+        placementAreas.forEach((area) => {
+          let newPanels = getPanelsInPlacementArea(area, w);
+
+          calculatedPanels.push(...newPanels);
+        });
+        return calculatedPanels;
+      }
+
+      function calculatePanels(roofPolygon, baseLineFirstIndex, w, h) {
+        let point = {
+          x: roofPolygon[baseLineFirstIndex].x,
+          y: roofPolygon[baseLineFirstIndex].y,
+        };
+        let point2 = {
+          x: roofPolygon[baseLineFirstIndex + 1].x,
+          y: roofPolygon[baseLineFirstIndex + 1].y,
+        };
+        let deg = -getAngle(point2, point);
+
+        rotateRoof(ctx, roofPolygon, deg);
+        let uprightPanels = getPanels(roofPolygon, baseLineFirstIndex, w, h);
+        let sidewaysPanels = getPanels(roofPolygon, baseLineFirstIndex, h, w);
+        if (uprightPanels.length > sidewaysPanels.length) {
+          return {
+            rotation: 0,
+            panels: uprightPanels.map((panel) => {
+              return { midPoint: panel, selected: true };
+            }),
+          };
+        }
+        return {
+          rotation: 90,
+          panels: sidewaysPanels.map((panel) => {
+            return { midPoint: panel, selected: true };
+          }),
+        };
       }
       drawPolygon(random);
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let ind1 = 4,
-          ind2 = 5;
-        let point = { x: polygon[ind1].x, y: polygon[ind1].y };
-        let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
-        let deg = -getAngle(point2, point);
-
-        rotateRoof(ctx, polygon, deg);
+        let roofPanels = calculatePanels(
+          polygon,
+          0,
+          panelSize.width,
+          panelSize.height
+        );
         ctx.fillStyle = "#0077CC66";
         ctx.strokeStyle = "#0077CC";
         let path = new Path2D();
@@ -490,32 +538,7 @@
         ctx.fill(path);
         ctx.stroke(path);
         panels.push(path);
-        let lines = getLines(polygon);
-        polygon.forEach((v) => {
-          v.x = Math.round(v.x);
-          v.y = Math.round(v.y);
-        });
-        let intersections = getIntersections(
-          polygon,
-          polygon[ind1].y,
-          panelSize.height
-        );
-        drawScanLines(intersections);
-        let placementAreas = getPlacementAreas(intersections);
-        placementAreas.forEach((area) => {
-          let panels = getPanelsInPlacementArea(area, panelSize.width);
-
-          ctx.fillStyle = "#FFFF00";
-          ctx.rect(
-            area.leftBound,
-            area.lowerY,
-            area.rightBound - area.leftBound,
-            area.upperY - area.lowerY
-          );
-          // ctx.fill();
-          ctx.stroke();
-          panels.forEach((panel) => drawDot(panel));
-        });
+        roofPanels.panels.forEach((panel) => drawDot(panel.midPoint));
         ctx.fillStyle = "#FF77CC66";
         ctx.strokeStyle = "#FF77CC";
         canvas.addEventListener("click", (e) => {
