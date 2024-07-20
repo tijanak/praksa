@@ -19,6 +19,8 @@
         position: absolute;
         top: 0;
         left: 0;
+        pointer-events: none;
+        user-select: none;
       }
     </style>
   </head>
@@ -28,113 +30,222 @@
       <canvas id="canvasMask" class="canvas-mask" />
     </div>
     <script>
-      let modelScale = { height: 1024, width: 1024, samScale: 1 };
-      let panelSize = { width: 20, height: 50 };
+      // #region promenljive
+      let modelScale = { height: 1024, width: 1024 };
+      let panelSize = { width: 20, height: 30 };
 
-      let parallellsKey = "slope0";
       let panels = [];
       const canvas = document.getElementById("canvasMask");
       const ctx = canvas.getContext("2d");
       canvas.width = modelScale.width;
       canvas.height = modelScale.height;
-      //TODO - obrisati ako ne treba
-      function drawParallelThroughPoint(point) {
-        ctx.fillStyle = "#0077CC66";
-        ctx.strokeStyle = "#0077CC";
-        ctx.beginPath();
-        ctx.moveTo(0, point.y);
-        ctx.lineTo(modelScale.width, point.y);
-        ctx.stroke();
+
+      let roofFill = "#F5ED8666";
+      let roofStroke = "#F5ED86";
+      let panelSelectedFill = "#5E5D5BCC";
+      let panelSelectedStroke = "#5E5D5B";
+      let panelUnselectedFill = "#5E5D5B22";
+      let panelUnselectedStroke = "#5E5D5B33";
+      let testPolygons = [
+        [
+          {
+            x: 598,
+            y: 169,
+          },
+          {
+            x: 664,
+            y: 244,
+          },
+          {
+            x: 754,
+            y: 234,
+          },
+          {
+            x: 662,
+            y: 121,
+          },
+        ],
+        [
+          {
+            x: 206,
+            y: 210,
+          },
+          {
+            x: 226,
+            y: 272,
+          },
+          {
+            x: 319,
+            y: 262,
+          },
+          {
+            x: 234,
+            y: 204,
+          },
+        ],
+        [
+          {
+            x: 702,
+            y: 679,
+          },
+          {
+            x: 641,
+            y: 760,
+          },
+          {
+            x: 639,
+            y: 871,
+          },
+          {
+            x: 753,
+            y: 967,
+          },
+          {
+            x: 846,
+            y: 889,
+          },
+          {
+            x: 876,
+            y: 777,
+          },
+        ],
+        [
+          {
+            x: 330,
+            y: 241,
+          },
+          {
+            x: 441,
+            y: 205,
+          },
+          {
+            x: 552,
+            y: 280,
+          },
+          {
+            x: 446,
+            y: 292,
+          },
+          {
+            x: 442,
+            y: 363,
+          },
+          {
+            x: 358,
+            y: 321,
+          },
+        ],
+
+        [
+          {
+            x: 339,
+            y: 526,
+          },
+          { x: 337, y: 506 },
+          {
+            x: 330,
+            y: 489,
+          },
+          {
+            x: 364,
+            y: 477,
+          },
+          {
+            x: 314,
+            y: 439,
+          },
+          {
+            x: 259,
+            y: 444,
+          },
+          {
+            x: 250,
+            y: 460,
+          },
+          {
+            x: 258,
+            y: 539,
+          },
+          {
+            x: 278,
+            y: 532,
+          },
+          {
+            x: 281,
+            y: 500,
+          },
+        ],
+      ];
+      // #endregion
+      main();
+      function main() {
+        processRoof(ctx, testPolygons[0], 0);
       }
-      let testPoly = [
-        {
-          x: 598,
-          y: 169,
-        },
-        {
-          x: 664,
-          y: 244,
-        },
-        {
-          x: 754,
-          y: 234,
-        },
-        {
-          x: 662,
-          y: 121,
-        },
-      ];
-      let test2 = [
-        {
-          x: 206,
-          y: 210,
-        },
-        {
-          x: 226,
-          y: 272,
-        },
-        {
-          x: 319,
-          y: 262,
-        },
-        {
-          x: 234,
-          y: 204,
-        },
-      ];
-      let test3 = [
-        {
-          x: 702,
-          y: 679,
-        },
-        {
-          x: 641,
-          y: 760,
-        },
-        {
-          x: 639,
-          y: 871,
-        },
-        {
-          x: 753,
-          y: 967,
-        },
-        {
-          x: 846,
-          y: 889,
-        },
-        {
-          x: 876,
-          y: 777,
-        },
-      ];
-      let random = [
-        {
-          x: 230,
-          y: 241,
-        },
-        {
-          x: 341,
-          y: 205,
-        },
-        {
-          x: 452,
-          y: 280,
-        },
-        {
-          //this
-          x: 346,
-          y: 292,
-        },
-        {
-          x: 342,
-          y: 363,
-        },
-        {
-          x: 258,
-          y: 321,
-        },
-      ];
+
+      function processRoof(ctx, roofVerteces, baseLineIndex) {
+        let vertex1 = roofVerteces[baseLineIndex];
+        let vertex2 =
+          roofVerteces[
+            baseLineIndex + 1 < roofVerteces.length ? baseLineIndex + 1 : 0
+          ];
+        let deg = getAngle(vertex2, vertex1);
+
+        let midPoint = getMidPoint(roofVerteces);
+        //krov ce biti rotiran u toku obrade pa ga rotacija canvasa vraca u pocetnu poziciju
+        rotateCanvas(ctx, -deg, midPoint);
+
+        let panelPlacement = calculatePanelPlacement(
+          roofVerteces,
+          baseLineIndex,
+          panelSize.width,
+          panelSize.height
+        );
+        panelPlacement.panels.forEach((panel) => {
+          //konstrukcija panela
+          let rect = getRectangle(
+            panel.midPoint,
+            panelSize.width,
+            panelSize.height
+          );
+          //orijentisanje panela na osnovu vracene rotacije
+          rotatePolygonAroundPoint(
+            rect,
+            panelPlacement.rotation,
+            panel.midPoint
+          );
+          //pamtimo putanju koja predstavlja panel za kasniju upotrebu
+          panel.path = makePath(rect);
+        });
+        draw(ctx, panelPlacement.panels, roofVerteces);
+
+        //ukljucivanje/iskljucivanje panela
+        canvas.addEventListener("click", (e) => {
+          panelPlacement.panels.forEach((panel, index) => {
+            if (ctx.isPointInPath(panel.path, e.offsetX, e.offsetY)) {
+              panelPlacement.panels[index].selected =
+                !panelPlacement.panels[index].selected;
+              draw(ctx, panelPlacement.panels, roofVerteces);
+            }
+          });
+        });
+      }
+      //iscrtavanje panela i krova
+      function draw(ctx, panels, roof) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawPath(ctx, makePath(roof), roofFill, roofStroke);
+        panels.forEach((panel) => {
+          if (panel.selected == true)
+            drawPath(ctx, panel.path, panelSelectedFill, panelSelectedStroke);
+          else
+            drawPath(
+              ctx,
+              panel.path,
+              panelUnselectedFill,
+              panelUnselectedStroke
+            );
+        });
+      }
+      //izracunava sredisnju tacku poligona
       function getMidPoint(polygon) {
         let midPoint = { x: 0, y: 0 };
         for (let i = 0; i < polygon.length; i++) {
@@ -165,37 +276,25 @@
           polygon[i].y += y;
         }
       }
-      function getAngle(v1, v2) {
-        return (Math.atan(getSlope(v1, v2)) * 180) / Math.PI;
+      //vraca ugao koji linija zaklapa sa x osom
+      function getAngle(vertex1, vertex2) {
+        return (Math.atan(getSlope(vertex1, vertex2)) * 180) / Math.PI;
       }
-      function getSlope(v1, v2) {
-        var kol = v1.x - v2.x;
+      function getSlope(vertex1, vertex2) {
+        var kol = vertex1.x - vertex2.x;
         if (kol == null) return 0;
-        return (v1.y - v2.y) / kol;
-      }
-      function drawDot(dot) {
-        ctx.fillStyle = "#FF0000";
-        var dotSize = 4;
-        ctx.fillRect(
-          dot.x - dotSize / 2,
-          dot.y - dotSize / 2,
-          dotSize,
-          dotSize
-        );
+        return (vertex1.y - vertex2.y) / kol;
       }
 
-      function drawHelperLine(v1, v2) {
-        ctx.strokeStyle = "#CCCCCC";
-        ctx.moveTo(v1.x, v1.y);
-        ctx.lineTo(v2.x, v2.y);
-        ctx.stroke();
-      }
-      //vraca parove tacaka koje cine liniju
+      //vraca sve linije poligona kao parove tacaka
       function getLines(verteces) {
         return verteces.map((v, i) => {
           if (i < verteces.length - 1) {
             return [v, verteces[i + 1]];
-          } else return [v, verteces[0]];
+          } else {
+            //poslednja tacka se uparuje sa prvom
+            return [v, verteces[0]];
+          }
         });
       }
       //obrada lancane liste
@@ -206,9 +305,9 @@
           node = node.next;
         }
       }
-      //promena tekucih vrednosti x linija na osnovu njihovih nagiba
-      function adjustX(node) {
-        iterateThroughtList(node, (n) => (n.xTek += n.slope));
+      //promena tekucih vrednosti x u linijama na osnovu njihovih nagiba
+      function adjustX(activeEdgeTable) {
+        iterateThroughtList(activeEdgeTable, (n) => (n.xTek += n.slope));
       }
       //izbacivanje elemenata koji zadovoljavaju uslov iz lancane liste
       function filterList(start, cond) {
@@ -242,11 +341,11 @@
         return start;
       }
       //kreira edge table za scan line algoritam
-      function makeEdgeTable(polyon) {
+      function makeEdgeTable(polygon, parallellsKey) {
         let edgeTable = new Map();
-        let lines = getLines(polyon);
+        let lines = getLines(polygon);
         edgeTable.set(parallellsKey, []);
-        lines.forEach((line, i) => {
+        lines.forEach((line) => {
           let max = line[0],
             min = line[1];
           if (line[0].y < line[1].y) {
@@ -258,7 +357,6 @@
             slope = 1 / slope;
 
             let edge = {
-              id: i,
               ymax: max.y,
               xTek: min.x,
               slope: slope,
@@ -272,24 +370,34 @@
               edgeTable.set(Math.round(min.y), edge);
             }
           } else {
-            //linije paralelne sa x ne ukljucujemo u scan line
+            //linije paralelne sa x osom ne ukljucujemo u scan line
             //ali za neke slucajeve je potrebno
-            //dodati naknadno temena paralelne linije pa ih prenosimo
+            //dodati naknadno temena nekih od njih pa ih prenosimo
             edgeTable.get(parallellsKey).push(line);
           }
         });
         return edgeTable;
       }
+      //prilagodjeni scan line algoritam, vraca preseke grupisane po y koordinati
       function getIntersections(polygon, baseLineY, lineDistance) {
-        let minMaxY = getMinMaxY(polygon);
+        let minMaxY = getMinMaxY(polygon); //vraca najmanju i najvecu vrednost Y u poligonu
         let polygonMaxY = minMaxY.maxY;
         let polygonMinY = minMaxY.minY;
 
-        let edgeTable = makeEdgeTable(polygon);
+        let parallellsKey = "parallels";
+        let edgeTable = makeEdgeTable(polygon, parallellsKey);
         let intersections = new Map();
         let aet = null;
-        let deltaY = Math.floor((baseLineY - polygonMinY) / lineDistance);
-        let startY = Math.round(baseLineY - deltaY * lineDistance);
+        //racunanje broja scan linija ispod osnovne linije koje su u opsegu poligona
+        let numOfScanLinesUnderBaseLine = Math.floor(
+          (baseLineY - polygonMinY) / lineDistance
+        );
+        //racunanje pocetnog nivoa za skeniranje
+        let startY = Math.round(
+          baseLineY - numOfScanLinesUnderBaseLine * lineDistance
+        );
+
+        //ako postoje ivice koje pocinju ispod pocetnog sken nivoa, moraju da se dodaju u AET i da im se promeni tekuce X
         for (let y = Math.round(polygonMinY); y < Math.round(startY); y++) {
           if (edgeTable.has(y)) {
             let newEdges = edgeTable.get(y);
@@ -298,7 +406,9 @@
 
           adjustX(aet);
         }
+        //obradjuju se nivoi do najvece vrednosti Y u poligonu
         for (let y = Math.round(startY); y <= Math.round(polygonMaxY); y++) {
+          //dodavanje ivica kojima je ymin==y
           if (edgeTable.has(y)) {
             let newEdges = edgeTable.get(y);
             iterateThroughtList(newEdges, (edge) => {
@@ -311,22 +421,28 @@
               });
             });
           }
+          //izbacivanje linija kojima je ymax==y
           aet = filterList(aet, (node) => {
             return node.ymax <= y;
           });
+
           if (Number.isInteger((y - startY) / lineDistance)) {
+            //ako je y scan line, u rezultat dodajemo tekuce vrednosti x iz aktivnih ivica
             let points = [];
             iterateThroughtList(aet, (node) => {
               points.push(Math.round(node.xTek));
             });
             intersections.set(y, points);
           }
-
+          //prilagodjavanje tekuce vrednosti x
           adjustX(aet);
         }
+        //obrada linija koje su paralelne sa osnovnom
+        //resava neke slucajeve sa konkavnim poligonima
         let parallels = edgeTable.get(parallellsKey);
         parallels.forEach((line) => {
           if (intersections.has(Math.round(line[0].y))) {
+            //ako je paralela na sken liniji, proveravamo da li su joj temena u rezultatu
             let vertexes = intersections.get(Math.round(line[0].y));
             let containsFirstVertex =
               vertexes
@@ -338,6 +454,7 @@
                 .find((v) => v == Math.round(line[1].x)) != undefined;
 
             if (!(containsFirstVertex && containsSecondVertex)) {
+              //ako je samo jedna o
               vertexes.push(line[0].x);
               vertexes.push(line[1].x);
             }
@@ -390,7 +507,7 @@
         translatePolygon(polygon, point.x, point.y);
       }
       //rotiranje krova oko njegove centralne tacke
-      function rotateRoof(ctx, roofPolygon, deg) {
+      function rotateRoof(roofPolygon, deg) {
         let midPoint = getMidPoint(roofPolygon);
         rotatePolygonAroundPoint(roofPolygon, deg, midPoint);
       }
@@ -479,7 +596,6 @@
           roofPolygon[baseLineFirstIndex].y,
           h
         );
-        // drawScanLines(intersections);
         let placementAreas = getPlacementAreas(intersections);
         placementAreas.forEach((area) => {
           let newPanels = getPanelsInPlacementArea(area, w);
@@ -489,18 +605,19 @@
         return calculatedPanels;
       }
 
-      function calculatePanels(ctx, roofPolygon, baseLineFirstIndex, w, h) {
-        let point = {
-          x: roofPolygon[baseLineFirstIndex].x,
-          y: roofPolygon[baseLineFirstIndex].y,
-        };
-        let point2 = {
-          x: roofPolygon[baseLineFirstIndex + 1].x,
-          y: roofPolygon[baseLineFirstIndex + 1].y,
-        };
-        let deg = -getAngle(point2, point);
+      function calculatePanelPlacement(roofPolygon, baseLineFirstIndex, w, h) {
+        let vertex1 = roofPolygon[baseLineFirstIndex];
 
-        rotateRoof(ctx, roofPolygon, deg);
+        let vertex2 =
+          roofPolygon[
+            baseLineFirstIndex + 1 < roofPolygon.length
+              ? baseLineFirstIndex + 1
+              : 0
+          ];
+        let deg = -getAngle(vertex2, vertex1);
+
+        let midPoint = getMidPoint(roofPolygon);
+        rotateRoof(roofPolygon, deg);
         let uprightPanels = getPanels(roofPolygon, baseLineFirstIndex, w, h);
         let sidewaysPanels = getPanels(roofPolygon, baseLineFirstIndex, h, w);
         if (uprightPanels.length > sidewaysPanels.length) {
@@ -518,6 +635,7 @@
           }),
         };
       }
+      //izracunava temena pravougaonika na osnovu centralne tacke i sirine/visine
       function getRectangle(midPoint, w, h) {
         return [
           { x: midPoint.x - w / 2, y: midPoint.y - h / 2 },
@@ -526,12 +644,14 @@
           { x: midPoint.x - w / 2, y: midPoint.y + h / 2 },
         ];
       }
+      //iscrtavanje putanje na canvasu
       function drawPath(ctx, path, fill, stroke) {
         ctx.fillStyle = fill;
         ctx.strokeStyle = stroke;
         ctx.fill(path);
         ctx.stroke(path);
       }
+      //kreira putanju od poligona
       function makePath(polygon) {
         let path = new Path2D();
         path.moveTo(polygon[0].x, polygon[0].y);
@@ -541,55 +661,19 @@
         path.lineTo(polygon[0].x, polygon[0].y);
         return path;
       }
-      function draw(panels, roof) {
-        let roofFill = "#0077CC66";
-        let roofStroke = "#0077CC";
-        let panelSelectedFill = "#A36350";
-        let panelSelectedStroke = "3D3430";
-        let panelUnselectedFill = "#A36350CC";
-        let panelUnselectedStroke = "3D3430CC";
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawPath(ctx, makePath(roof), roofFill, roofStroke);
-        panels.forEach((panel) => {
-          if (panel.selected == true)
-            drawPath(ctx, panel.path, panelSelectedFill, panelSelectedStroke);
-          else
-            drawPath(
-              ctx,
-              panel.path,
-              panelUnselectedFill,
-              panelUnselectedStroke
-            );
-        });
-      }
-      testing(random);
-      function testing(polygon) {
-        let roofPanels = calculatePanels(
-          ctx,
-          polygon,
-          0,
-          panelSize.width,
-          panelSize.height
-        );
-        roofPanels.panels.forEach((panel) => {
-          let rect = getRectangle(
-            panel.midPoint,
-            panelSize.width,
-            panelSize.height
-          );
-          rotatePolygonAroundPoint(rect, roofPanels.rotation, panel.midPoint);
-          panel.path = makePath(rect);
-        });
-        draw(roofPanels.panels, polygon);
-        canvas.addEventListener("click", (e) => {
-          console.log(e.offsetX, e.offsetY);
-          roofPanels.panels.forEach((panel, index) => {
-            if (ctx.isPointInPath(panel.path, e.offsetX, e.offsetY)) {
-              roofPanels.panels[index].selected =
-                !roofPanels.panels[index].selected;
-              draw(roofPanels.panels, polygon);
-            }
-          });
+      //testiranje svih test poligona
+      function test(baseLineIndex) {
+        let imageContainer = document.getElementById("imageContainer");
+        testPolygons.forEach((polygon) => {
+          if (baseLineIndex < polygon.length) {
+            let newCanvas = document.createElement("canvas");
+            newCanvas.classList.add("canvas-mask");
+            imageContainer.appendChild(newCanvas);
+            newCanvas.width = modelScale.width;
+            newCanvas.height = modelScale.height;
+            let newCtx = newCanvas.getContext("2d");
+            processRoof(newCtx, polygon, baseLineIndex);
+          }
         });
       }
     </script>
