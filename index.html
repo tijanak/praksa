@@ -37,6 +37,7 @@
       const ctx = canvas.getContext("2d");
       canvas.width = modelScale.width;
       canvas.height = modelScale.height;
+      //TODO - obrisati ako ne treba
       function drawParallelThroughPoint(point) {
         ctx.fillStyle = "#0077CC66";
         ctx.strokeStyle = "#0077CC";
@@ -80,12 +81,6 @@
           x: 234,
           y: 204,
         },
-      ];
-      let p2 = [
-        { x: 0, y: 0 },
-        { x: modelScale.width, y: 0 },
-        { x: modelScale.width, y: modelScale.height },
-        { x: 0, y: modelScale.height },
       ];
       let test3 = [
         {
@@ -189,19 +184,22 @@
           dotSize
         );
       }
+
       function drawHelperLine(v1, v2) {
         ctx.strokeStyle = "#CCCCCC";
         ctx.moveTo(v1.x, v1.y);
         ctx.lineTo(v2.x, v2.y);
         ctx.stroke();
       }
-      function pairwise(verteces) {
+      //vraca parove tacaka koje cine liniju
+      function getLines(verteces) {
         return verteces.map((v, i) => {
           if (i < verteces.length - 1) {
             return [v, verteces[i + 1]];
           } else return [v, verteces[0]];
         });
       }
+      //obrada lancane liste
       function iterateThroughtList(start, cbFunc) {
         let node = start;
         while (node != null) {
@@ -209,9 +207,11 @@
           node = node.next;
         }
       }
+      //promena tekucih vrednosti x linija na osnovu njihovih nagiba
       function adjustX(node) {
         iterateThroughtList(node, (n) => (n.xTek += n.slope));
       }
+      //izbacivanje elemenata koji zadovoljavaju uslov iz lancane liste
       function filterList(start, cond) {
         let prev = null;
         let node = start;
@@ -227,9 +227,10 @@
         }
         return start;
       }
-      function addToList(aet, edge) {
-        if (aet == null) return edge;
-        current = aet;
+      //dodavanje linije u lancanu listu
+      function addToList(start, edge) {
+        if (start == null) return edge;
+        current = start;
         prev = null;
         while (current != null && current.xTek < edge.xTek) {
           prev = current;
@@ -237,21 +238,14 @@
           current = current.next;
         }
         edge.next = current;
-        if (prev == null) aet = edge;
+        if (prev == null) start = edge;
         else prev.next = edge;
-        return aet;
+        return start;
       }
-      function addNewEdges(aet, newEdges) {
-        let newList = aet;
-        iterateThroughtList(newEdges, (node) => {
-          newList = addToList(aet, node);
-        });
-        return aet;
-      }
-
+      //kreira edge table za scan line algoritam
       function makeEdgeTable(polyon) {
         let edgeTable = new Map();
-        let lines = pairwise(polyon);
+        let lines = getLines(polyon);
         edgeTable.set(parallellsKey, []);
         lines.forEach((line, i) => {
           let max = line[0],
@@ -271,28 +265,17 @@
               slope: slope,
               next: null,
             };
-            /*let secondEdge = null;
-          if (slope == 0) {
-            secondEdge = {
-              id: i,
-              ymax: max.y,
-              xTek: max.x,
-              slope: slope,
-              next: null,
-            };
-          }*/
             if (edgeTable.has(Math.round(min.y))) {
               let edges = edgeTable.get(Math.round(min.y));
               let newList = addToList(edges, edge);
-              // if (secondEdge != null) newList = addToList(newList, secondEdge);
-              // console.log(i, newList, secondEdge);
               edgeTable.set(Math.round(min.y), newList);
             } else {
-              //console.log(i, secondEdge);
-              //edge.next = secondEdge;
               edgeTable.set(Math.round(min.y), edge);
             }
           } else {
+            //linije paralelne sa x ne ukljucujemo u scan line
+            //ali za neke slucajeve je potrebno
+            //dodati naknadno temena paralelne linije pa ih prenosimo
             edgeTable.get(parallellsKey).push(line);
           }
         });
@@ -378,6 +361,7 @@
         ctx.rotate(-radians(deg));
         ctx.translate(-rotationCenter.x, -rotationCenter.y);
       }
+      //TODO - obrisati ako ne treba
       function isDotInRectangle(upperLeftCorner, lowerRighCorner, dot) {
         return (
           dot.x > upperLeftCorner.x &&
@@ -386,22 +370,42 @@
           dot.y > upperLeftCorner.y
         );
       }
+      function drawScanLines(intersections) {
+        intersections.forEach((xValues, y) => {
+          if (xValues.length % 2 != 0) console.log("greska");
+          for (let j = 0; j < xValues.length - 1; j += 2) {
+            if (j + 1 < xValues.length) {
+              drawDot({ x: xValues[j], y: y });
+              drawDot({ x: xValues[j + 1], y: y });
+              drawHelperLine(
+                { x: xValues[j], y: y },
+                { x: xValues[j + 1], y: y }
+              );
+            }
+          }
+        });
+      }
+      function rotatePolygonAroundPoint(polygon, deg, point) {
+        translatePolygon(polygon, -point.x, -point.y);
+        rotatePolygon(polygon, deg);
+        translatePolygon(polygon, point.x, point.y);
+      }
+      function rotateRoof(ctx, roofPolygon, deg) {
+        let midPoint = getMidPoint(roofPolygon);
+        rotatePolygonAroundPoint(roofPolygon, deg, midPoint);
 
-      drawPolygon(testPoly);
+        rotateCanvas(ctx, deg, midPoint);
+      }
+      drawPolygon(random);
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let midPoint = getMidPoint(polygon);
-        let ind1 = 3,
-          ind2 = 0;
+        let ind1 = 0,
+          ind2 = 1;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getAngle(point2, point);
 
-        translatePolygon(polygon, -midPoint.x, -midPoint.y);
-        rotatePolygon(polygon, deg);
-        translatePolygon(polygon, midPoint.x, midPoint.y);
-
-        //rotateCanvas(ctx, deg, midPoint);
+        rotateRoof(ctx, polygon, deg);
 
         ctx.fillStyle = "#0077CC66";
         ctx.strokeStyle = "#0077CC";
@@ -415,7 +419,7 @@
         ctx.fill(path);
         ctx.stroke(path);
         panels.push(path);
-        let lines = pairwise(polygon);
+        let lines = getLines(polygon);
         polygon.forEach((v) => {
           v.x = Math.round(v.x);
           v.y = Math.round(v.y);
@@ -425,19 +429,7 @@
           polygon[ind1].y,
           panelSize.height
         );
-        intersections.forEach((xValues, y) => {
-          if (xValues.length % 2 != 0) console.log("BRUHHHHHH");
-          for (let j = 0; j < xValues.length - 1; j += 2) {
-            if (j + 1 < xValues.length) {
-              drawDot({ x: xValues[j], y: y });
-              drawDot({ x: xValues[j + 1], y: y });
-              drawHelperLine(
-                { x: xValues[j], y: y },
-                { x: xValues[j + 1], y: y }
-              );
-            }
-          }
-        });
+        drawScanLines(intersections);
         ctx.fillStyle = "#FF77CC66";
         ctx.strokeStyle = "#FF77CC";
         canvas.addEventListener("click", (e) => {
