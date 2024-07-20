@@ -29,7 +29,7 @@
     </div>
     <script>
       let modelScale = { height: 1024, width: 1024, samScale: 1 };
-      let panelSize = { width: 20, height: 30 };
+      let panelSize = { width: 20, height: 50 };
 
       let parallellsKey = "slope0";
       let panels = [];
@@ -383,17 +383,18 @@
           }
         });
       }
+      //rotira poligon za deg stepeni oko date tacke
       function rotatePolygonAroundPoint(polygon, deg, point) {
         translatePolygon(polygon, -point.x, -point.y);
         rotatePolygon(polygon, deg);
         translatePolygon(polygon, point.x, point.y);
       }
+      //rotiranje krova oko njegove centralne tacke
       function rotateRoof(ctx, roofPolygon, deg) {
         let midPoint = getMidPoint(roofPolygon);
         rotatePolygonAroundPoint(roofPolygon, deg, midPoint);
-
-        //rotateCanvas(ctx, deg, midPoint);
       }
+      //vraca kljuceve iz mape kao sortirani niz
       function sortedNumberKeys(map) {
         return [...map.keys()].sort((a, b) => a - b);
       }
@@ -488,7 +489,7 @@
         return calculatedPanels;
       }
 
-      function calculatePanels(roofPolygon, baseLineFirstIndex, w, h) {
+      function calculatePanels(ctx, roofPolygon, baseLineFirstIndex, w, h) {
         let point = {
           x: roofPolygon[baseLineFirstIndex].x,
           y: roofPolygon[baseLineFirstIndex].y,
@@ -517,10 +518,30 @@
           }),
         };
       }
-      drawPolygon(random);
-      function drawPolygon(polygon) {
+      function getRectangle(midPoint, w, h) {
+        return [
+          { x: midPoint.x - w / 2, y: midPoint.y - h / 2 },
+          { x: midPoint.x + w / 2, y: midPoint.y - h / 2 },
+          { x: midPoint.x + w / 2, y: midPoint.y + h / 2 },
+          { x: midPoint.x - w / 2, y: midPoint.y + h / 2 },
+        ];
+      }
+      function drawPolygon(ctx, polygon, fill, stroke) {
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+        ctx.moveTo(polygon[0].x, polygon[0].y);
+        for (let i = 1; i < polygon.length; i++) {
+          ctx.lineTo(polygon[i].x, polygon[i].y);
+        }
+        ctx.lineTo(polygon[0].x, polygon[0].y);
+        ctx.fill();
+        ctx.stroke();
+      }
+      testing(random);
+      function testing(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let roofPanels = calculatePanels(
+          ctx,
           polygon,
           0,
           panelSize.width,
@@ -538,7 +559,15 @@
         ctx.fill(path);
         ctx.stroke(path);
         panels.push(path);
-        roofPanels.panels.forEach((panel) => drawDot(panel.midPoint));
+        roofPanels.panels.forEach((panel) => {
+          let rect = getRectangle(
+            panel.midPoint,
+            panelSize.width,
+            panelSize.height
+          );
+          rotatePolygonAroundPoint(rect, roofPanels.rotation, panel.midPoint);
+          drawPolygon(ctx, rect, "#00FF00", "CCCCCC");
+        });
         ctx.fillStyle = "#FF77CC66";
         ctx.strokeStyle = "#FF77CC";
         canvas.addEventListener("click", (e) => {
