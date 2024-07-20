@@ -29,7 +29,7 @@
     </div>
     <script>
       let modelScale = { height: 1024, width: 1024, samScale: 1 };
-      let panelSize = { width: 40, height: 30 };
+      let panelSize = { width: 20, height: 30 };
 
       let parallellsKey = "slope0";
       let panels = [];
@@ -415,16 +415,10 @@
           rightBound: Math.min(lowerPointsX[1], upperPointsX[1]),
         };
       }
-      function getAvailablePanelPlacementAreas(
-        lowerY,
-        lowerXValues,
-        upperY,
-        upperxValues
-      ) {
+      function getPlacementAreaBounds(lowerXValues, upperxValues) {
         let lowerPairs = combineIntersectionPairs(lowerXValues);
         let upperPairs = combineIntersectionPairs(upperxValues);
-        console.log(lowerPairs);
-        console.log(upperPairs);
+        let placementAreaBounds = [];
         let lowerInd = 0,
           upperInd = 0;
         while (lowerInd < lowerPairs.length && upperInd < upperPairs.length) {
@@ -435,21 +429,50 @@
           if (xBounds.rightBound >= upperPairs[upperInd][1]) {
             upperInd++;
           }
-          ctx.rect(
-            xBounds.leftBound,
-            lowerY,
-            xBounds.rightBound - xBounds.leftBound,
-            upperY - lowerY
-          );
-          ctx.fill();
-          ctx.stroke();
+          placementAreaBounds.push(xBounds);
         }
+        return placementAreaBounds;
       }
-      drawPolygon(test3);
+      function getPlacementAreas(intersections) {
+        let placementAreas = [];
+        let sortedKeys = sortedNumberKeys(intersections);
+        for (let i = 0; i < sortedKeys.length - 1; i++) {
+          let xBounds = getPlacementAreaBounds(
+            intersections.get(sortedKeys[i]),
+            intersections.get(sortedKeys[i + 1])
+          );
+          xBounds.forEach((bounds) => {
+            placementAreas.push({
+              lowerY: sortedKeys[i],
+              upperY: sortedKeys[i + 1],
+              rightBound: bounds.rightBound,
+              leftBound: bounds.leftBound,
+            });
+          });
+        }
+        return placementAreas;
+      }
+      function getPanelsInPlacementArea(placementArea, panelSizeX) {
+        let panels = [];
+        for (
+          let x = placementArea.leftBound;
+          x + panelSizeX <= placementArea.rightBound;
+          x += panelSizeX
+        ) {
+          console.log(x);
+          panels.push({
+            x: x + panelSizeX / 2,
+            y: (placementArea.upperY + placementArea.lowerY) / 2,
+          });
+        }
+        console.log(panels);
+        return panels;
+      }
+      drawPolygon(random);
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let ind1 = 0,
-          ind2 = 1;
+        let ind1 = 4,
+          ind2 = 5;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getAngle(point2, point);
@@ -478,15 +501,21 @@
           panelSize.height
         );
         drawScanLines(intersections);
-        let sortedKeys = sortedNumberKeys(intersections);
-        for (let i = 0; i < sortedKeys.length - 1; i++) {
-          getAvailablePanelPlacementAreas(
-            sortedKeys[i],
-            intersections.get(sortedKeys[i]),
-            sortedKeys[i + 1],
-            intersections.get(sortedKeys[i + 1])
+        let placementAreas = getPlacementAreas(intersections);
+        placementAreas.forEach((area) => {
+          let panels = getPanelsInPlacementArea(area, panelSize.width);
+
+          ctx.fillStyle = "#FFFF00";
+          ctx.rect(
+            area.leftBound,
+            area.lowerY,
+            area.rightBound - area.leftBound,
+            area.upperY - area.lowerY
           );
-        }
+          // ctx.fill();
+          ctx.stroke();
+          panels.forEach((panel) => drawDot(panel));
+        });
         ctx.fillStyle = "#FF77CC66";
         ctx.strokeStyle = "#FF77CC";
         canvas.addEventListener("click", (e) => {
