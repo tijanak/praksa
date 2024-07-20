@@ -526,20 +526,44 @@
           { x: midPoint.x - w / 2, y: midPoint.y + h / 2 },
         ];
       }
-      function drawPolygon(ctx, polygon, fill, stroke) {
+      function drawPath(ctx, path, fill, stroke) {
         ctx.fillStyle = fill;
         ctx.strokeStyle = stroke;
-        ctx.moveTo(polygon[0].x, polygon[0].y);
+        ctx.fill(path);
+        ctx.stroke(path);
+      }
+      function makePath(polygon) {
+        let path = new Path2D();
+        path.moveTo(polygon[0].x, polygon[0].y);
         for (let i = 1; i < polygon.length; i++) {
-          ctx.lineTo(polygon[i].x, polygon[i].y);
+          path.lineTo(polygon[i].x, polygon[i].y);
         }
-        ctx.lineTo(polygon[0].x, polygon[0].y);
-        ctx.fill();
-        ctx.stroke();
+        path.lineTo(polygon[0].x, polygon[0].y);
+        return path;
+      }
+      function draw(panels, roof) {
+        let roofFill = "#0077CC66";
+        let roofStroke = "#0077CC";
+        let panelSelectedFill = "#A36350";
+        let panelSelectedStroke = "3D3430";
+        let panelUnselectedFill = "#A36350CC";
+        let panelUnselectedStroke = "3D3430CC";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawPath(ctx, makePath(roof), roofFill, roofStroke);
+        panels.forEach((panel) => {
+          if (panel.selected == true)
+            drawPath(ctx, panel.path, panelSelectedFill, panelSelectedStroke);
+          else
+            drawPath(
+              ctx,
+              panel.path,
+              panelUnselectedFill,
+              panelUnselectedStroke
+            );
+        });
       }
       testing(random);
       function testing(polygon) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
         let roofPanels = calculatePanels(
           ctx,
           polygon,
@@ -547,18 +571,6 @@
           panelSize.width,
           panelSize.height
         );
-        ctx.fillStyle = "#0077CC66";
-        ctx.strokeStyle = "#0077CC";
-        let path = new Path2D();
-        path.moveTo(polygon[0].x, polygon[0].y);
-        for (let i = 1; i < polygon.length; i++) {
-          path.lineTo(polygon[i].x, polygon[i].y);
-        }
-        path.lineTo(polygon[0].x, polygon[0].y);
-
-        ctx.fill(path);
-        ctx.stroke(path);
-        panels.push(path);
         roofPanels.panels.forEach((panel) => {
           let rect = getRectangle(
             panel.midPoint,
@@ -566,15 +578,16 @@
             panelSize.height
           );
           rotatePolygonAroundPoint(rect, roofPanels.rotation, panel.midPoint);
-          drawPolygon(ctx, rect, "#00FF00", "CCCCCC");
+          panel.path = makePath(rect);
         });
-        ctx.fillStyle = "#FF77CC66";
-        ctx.strokeStyle = "#FF77CC";
+        draw(roofPanels.panels, polygon);
         canvas.addEventListener("click", (e) => {
           console.log(e.offsetX, e.offsetY);
-          panels.forEach((panel, index) => {
-            if (ctx.isPointInPath(panel, e.offsetX, e.offsetY)) {
-              console.log("kliknut", index);
+          roofPanels.panels.forEach((panel, index) => {
+            if (ctx.isPointInPath(panel.path, e.offsetX, e.offsetY)) {
+              roofPanels.panels[index].selected =
+                !roofPanels.panels[index].selected;
+              draw(roofPanels.panels, polygon);
             }
           });
         });
