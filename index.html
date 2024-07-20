@@ -310,7 +310,6 @@
             edge.next = secondEdge;
             edgeTable.set(Math.round(min.y), edge);
           }
-          console.log(line, edgeTable);
         });
         return edgeTable;
       }
@@ -326,13 +325,12 @@
         let startY = Math.round(baseLineY - deltaY * lineDistance);
         console.log(edgeTable);
         for (let y = Math.round(polygonMinY); y < Math.round(startY); y++) {
-          //console.log(y);
           if (edgeTable.has(y)) {
             let newEdges = edgeTable.get(y);
             aet = addToList(aet, newEdges);
           }
+          adjustX(aet);
         }
-        console.log(aet);
         for (let y = Math.round(startY); y <= Math.round(polygonMaxY); y++) {
           aet = filterList(aet, (node) => node.ymax <= y);
           adjustX(aet);
@@ -393,8 +391,8 @@
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
-        let ind1 = 2,
-          ind2 = 3;
+        let ind1 = 0,
+          ind2 = 5;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getAngle(point2, point);
