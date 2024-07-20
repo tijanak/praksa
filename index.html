@@ -222,8 +222,7 @@
             } else {
               prev.next = node.next;
             }
-          }
-          prev = node;
+          } else prev = node;
           node = node.next;
         }
         return start;
@@ -331,7 +330,7 @@
             });
           }
           aet = filterList(aet, (node) => {
-            return Math.round(node.ymax) <= y;
+            return node.ymax <= y;
           });
           if (Number.isInteger((y - startY) / lineDistance)) {
             let points = [];
@@ -355,7 +354,8 @@
               vertexes
                 .map((v) => Math.round(v))
                 .find((v) => v == Math.round(line[1].x)) != undefined;
-            if (containsFirstVertex ^ containsSecondVertex) {
+
+            if (!(containsFirstVertex && containsSecondVertex)) {
               vertexes.push(line[0].x);
               vertexes.push(line[1].x);
             }
@@ -387,12 +387,12 @@
         );
       }
 
-      drawPolygon(test3);
+      drawPolygon(testPoly);
       function drawPolygon(polygon) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let midPoint = getMidPoint(polygon);
         let ind1 = 3,
-          ind2 = 2;
+          ind2 = 0;
         let point = { x: polygon[ind1].x, y: polygon[ind1].y };
         let point2 = { x: polygon[ind2].x, y: polygon[ind2].y };
         let deg = -getAngle(point2, point);
@@ -425,7 +425,6 @@
           polygon[ind1].y,
           panelSize.height
         );
-        console.log(intersections);
         intersections.forEach((xValues, y) => {
           if (xValues.length % 2 != 0) console.log("BRUHHHHHH");
           for (let j = 0; j < xValues.length - 1; j += 2) {
