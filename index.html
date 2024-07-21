@@ -190,7 +190,7 @@
       //test(1);
       main();
       function main() {
-        processRoof(ctx, testPolygons[4], 0);
+        processRoof(ctx, testPolygons[4], 6);
       }
 
       function processRoof(ctx, roofVerteces, baseLineIndex) {
@@ -203,7 +203,8 @@
 
         let midPoint = getMidPoint(roofVerteces);
         //krov ce biti rotiran u toku obrade pa ga rotacija canvasa vraca u pocetnu poziciju
-        rotateCanvas(ctx, -deg, midPoint);
+        //TODO - uncomment
+        //rotateCanvas(ctx, -deg, midPoint);
 
         let panelPlacement = calculatePanelPlacement(
           roofVerteces,
@@ -243,8 +244,10 @@
       }
       //iscrtavanje panela i krova
       function draw(ctx, panels, roof) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawPath(ctx, makePath(roof), roofFill, roofStroke);
+        //TODO - uncomment
+        /*
         panels.forEach((panel) => {
           if (panel.selected == true)
             drawPath(ctx, panel.path, panelSelectedFill, panelSelectedStroke);
@@ -255,7 +258,7 @@
               panelUnselectedFill,
               panelUnselectedStroke
             );
-        });
+        });*/
       }
       //izracunava sredisnju tacku poligona
       function getMidPoint(polygon) {
@@ -357,7 +360,7 @@
         let edgeTable = new Map();
         let lines = getLines(polygon);
         edgeTable.set(parallellsKey, []);
-        lines.forEach((line) => {
+        lines.forEach((line, i) => {
           let max = line[0],
             min = line[1];
           if (line[0].y < line[1].y) {
@@ -369,11 +372,13 @@
             slope = 1 / slope;
 
             let edge = {
+              id: i,
               ymax: max.y,
               xTek: min.x,
               slope: slope,
               next: null,
             };
+
             if (edgeTable.has(Math.round(min.y))) {
               let edges = edgeTable.get(Math.round(min.y));
               let newList = addToList(edges, edge);
@@ -447,21 +452,34 @@
           //prilagodjavanje tekuce vrednosti x
           adjustX(aet);
         }
-        //obrada linija koje su paralelne sa osnovnom
+        //obrada ivica koje su paralelne sa osnovnom
         let parallels = edgeTable.get(parallellsKey);
         parallels.forEach((line) => {
           if (intersections.has(Math.round(line[0].y))) {
             //ako je na scan liniji, treba dodati njena temena
             let vertexes = intersections.get(Math.round(line[0].y));
-            vertexes.push(line[0].x);
-            vertexes.push(line[1].x);
+            let containsFirstVertex =
+              vertexes
+                .map((v) => Math.round(v))
+                .find((v) => v == Math.round(line[0].x)) != undefined;
+            let containsSecondVertex =
+              vertexes
+                .map((v) => Math.round(v))
+                .find((v) => v == Math.round(line[1].x)) != undefined;
+
+            if (!(containsFirstVertex && containsSecondVertex)) {
+              vertexes.push(line[0].x);
+              vertexes.push(line[1].x);
+            }
           }
         });
+
         intersections.forEach((xValues) => {
           xValues.sort();
         });
         return intersections;
       }
+      //vraca najvecu i najmanju vrednost y u poligonu
       function getMinMaxY(polygon) {
         let ys = polygon.map((v) => v.y);
         let maxY = Math.max(...ys);
@@ -473,17 +491,28 @@
         ctx.rotate(-radians(deg));
         ctx.translate(-rotationCenter.x, -rotationCenter.y);
       }
-      //TODO - obrisati ako ne treba
-      function isDotInRectangle(upperLeftCorner, lowerRighCorner, dot) {
-        return (
-          dot.x > upperLeftCorner.x &&
-          dot.x < lowerRighCorner.x &&
-          dot.y < lowerRighCorner.y &&
-          dot.y > upperLeftCorner.y
+      //TODO - obrisati
+      function drawDot(dot) {
+        ctx.fillStyle = "#FF0000";
+        var dotSize = 4;
+        ctx.fillRect(
+          dot.x - dotSize / 2,
+          dot.y - dotSize / 2,
+          dotSize,
+          dotSize
         );
       }
+      //TODO - obrisati
+      function drawHelperLine(v1, v2) {
+        ctx.strokeStyle = "#CCCCCC";
+        ctx.moveTo(v1.x, v1.y);
+        ctx.lineTo(v2.x, v2.y);
+        ctx.stroke();
+      }
+      //TODO - obrisati
       function drawScanLines(intersections) {
-        intersections.forEach((xValues, y) => {
+        intersections.keys().forEach((y) => {
+          let xValues = intersections.get(y);
           if (xValues.length % 2 != 0) console.log("greska");
           for (let j = 0; j < xValues.length - 1; j += 2) {
             if (j + 1 < xValues.length) {
@@ -512,6 +541,7 @@
       function sortedNumberKeys(map) {
         return [...map.keys()].sort((a, b) => a - b);
       }
+      //pravi parove x vrednosti izmedju kojih ce se traziti paneli
       function combineIntersectionPairs(xValues) {
         return xValues.reduce(
           (accumulator, currentValue, currentIndex, array) => {
@@ -524,6 +554,8 @@
         );
       }
       function getXBounds(lowerPointsX, upperPointsX) {
+        if (lowerPointsX[0] > upperPointsX[1]) return 1; //donji opseg je van gornjeg, desno od njega
+        if (lowerPointsX[1] < upperPointsX[0]) return -1; //donji opseg je van gornjeg, levo od njega
         return {
           leftBound: Math.max(lowerPointsX[0], upperPointsX[0]),
           rightBound: Math.min(lowerPointsX[1], upperPointsX[1]),
@@ -537,13 +569,18 @@
           upperInd = 0;
         while (lowerInd < lowerPairs.length && upperInd < upperPairs.length) {
           let xBounds = getXBounds(lowerPairs[lowerInd], upperPairs[upperInd]);
-          if (xBounds.rightBound >= lowerPairs[lowerInd][1]) {
-            lowerInd++;
-          }
-          if (xBounds.rightBound >= upperPairs[upperInd][1]) {
+          if (xBounds == 1) {
             upperInd++;
+          } else if (xBounds == -1) {
+            lowerInd++;
+          } else {
+            if (xBounds.rightBound == lowerPairs[lowerInd][1]) {
+              lowerInd++;
+            } else if (xBounds.rightBound == upperPairs[upperInd][1]) {
+              upperInd++;
+            }
+            placementAreaBounds.push(xBounds);
           }
-          placementAreaBounds.push(xBounds);
         }
         return placementAreaBounds;
       }
@@ -593,8 +630,20 @@
           roofPolygon[baseLineFirstIndex].y,
           h
         );
+
+        drawScanLines(intersections);
         let placementAreas = getPlacementAreas(intersections);
+
         placementAreas.forEach((area) => {
+          //TODO - delete
+          ctx.rect(
+            area.leftBound,
+            area.lowerY,
+            area.rightBound - area.leftBound,
+            area.upperY - area.lowerY
+          );
+          ctx.fill();
+          ctx.stroke();
           let newPanels = getPanelsInPlacementArea(area, w);
 
           calculatedPanels.push(...newPanels);
@@ -615,7 +664,8 @@
 
         let midPoint = getMidPoint(roofPolygon);
         rotateRoof(roofPolygon, deg);
-        let uprightPanels = getPanels(roofPolygon, baseLineFirstIndex, w, h);
+        //TODO - uncomment
+        let uprightPanels = []; //getPanels(roofPolygon, baseLineFirstIndex, w, h);
         let sidewaysPanels = getPanels(roofPolygon, baseLineFirstIndex, h, w);
         if (uprightPanels.length > sidewaysPanels.length) {
           return {
