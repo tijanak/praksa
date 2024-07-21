@@ -187,10 +187,9 @@
       ];
       // #endregion
       //main();
-      //test(1);
-      main();
+      test(9);
       function main() {
-        processRoof(ctx, testPolygons[4], 6);
+        processRoof(ctx, testPolygons[4], 1);
       }
 
       function processRoof(ctx, roofVerteces, baseLineIndex) {
@@ -203,8 +202,7 @@
 
         let midPoint = getMidPoint(roofVerteces);
         //krov ce biti rotiran u toku obrade pa ga rotacija canvasa vraca u pocetnu poziciju
-        //TODO - uncomment
-        //rotateCanvas(ctx, -deg, midPoint);
+        rotateCanvas(ctx, -deg, midPoint);
 
         let panelPlacement = calculatePanelPlacement(
           roofVerteces,
@@ -246,8 +244,7 @@
       function draw(ctx, panels, roof) {
         // ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawPath(ctx, makePath(roof), roofFill, roofStroke);
-        //TODO - uncomment
-        /*
+
         panels.forEach((panel) => {
           if (panel.selected == true)
             drawPath(ctx, panel.path, panelSelectedFill, panelSelectedStroke);
@@ -258,7 +255,7 @@
               panelUnselectedFill,
               panelUnselectedStroke
             );
-        });*/
+        });
       }
       //izracunava sredisnju tacku poligona
       function getMidPoint(polygon) {
@@ -475,7 +472,7 @@
         });
 
         intersections.forEach((xValues) => {
-          xValues.sort();
+          xValues.sort((a, b) => a - b);
         });
         return intersections;
       }
@@ -567,11 +564,14 @@
         let placementAreaBounds = [];
         let lowerInd = 0,
           upperInd = 0;
+        console.log(lowerXValues, upperxValues);
         while (lowerInd < lowerPairs.length && upperInd < upperPairs.length) {
           let xBounds = getXBounds(lowerPairs[lowerInd], upperPairs[upperInd]);
           if (xBounds == 1) {
+            console.log("desno");
             upperInd++;
           } else if (xBounds == -1) {
+            console.log("levo");
             lowerInd++;
           } else {
             if (xBounds.rightBound == lowerPairs[lowerInd][1]) {
@@ -631,19 +631,9 @@
           h
         );
 
-        drawScanLines(intersections);
         let placementAreas = getPlacementAreas(intersections);
 
         placementAreas.forEach((area) => {
-          //TODO - delete
-          ctx.rect(
-            area.leftBound,
-            area.lowerY,
-            area.rightBound - area.leftBound,
-            area.upperY - area.lowerY
-          );
-          ctx.fill();
-          ctx.stroke();
           let newPanels = getPanelsInPlacementArea(area, w);
 
           calculatedPanels.push(...newPanels);
@@ -664,8 +654,7 @@
 
         let midPoint = getMidPoint(roofPolygon);
         rotateRoof(roofPolygon, deg);
-        //TODO - uncomment
-        let uprightPanels = []; //getPanels(roofPolygon, baseLineFirstIndex, w, h);
+        let uprightPanels = getPanels(roofPolygon, baseLineFirstIndex, w, h);
         let sidewaysPanels = getPanels(roofPolygon, baseLineFirstIndex, h, w);
         if (uprightPanels.length > sidewaysPanels.length) {
           return {
