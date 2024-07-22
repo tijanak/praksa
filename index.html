@@ -186,10 +186,10 @@
         ],
       ];
       // #endregion
-      //main();
-      test(3, 10, 30);
+      main();
+      // test(0, 20, 100);
       function main() {
-        processRoof(ctx, testPolygons[0], 2, panelSize.width, panelSize.height);
+        processRoof(ctx, testPolygons[4], 0, 20, 100);
       }
 
       function processRoof(ctx, roofVerteces, baseLineIndex, w, h) {
@@ -202,7 +202,7 @@
 
         let midPoint = getMidPoint(roofVerteces);
         //krov ce biti rotiran u toku obrade pa ga rotacija canvasa vraca u pocetnu poziciju
-        rotateCanvas(ctx, -deg, midPoint);
+        //rotateCanvas(ctx, -deg, midPoint);
 
         let panelPlacement = calculatePanelPlacement(
           roofVerteces,
@@ -359,7 +359,49 @@
         ctx.rotate(-radians(deg));
         ctx.translate(-rotationCenter.x, -rotationCenter.y);
       }
+      function addParallelLine(scanLine, line) {
+        scanLine.sort((a, b) => b - a);
+        let left = line[0].x,
+          right = line[1].x;
 
+        if (left > right) {
+          let c = right;
+          right = left;
+          left = right;
+        }
+        let firstIndex = scanLine
+          .map((v) => Math.round(v))
+          .findIndex((v) => v == Math.round(left));
+        let secondIndex = scanLine
+          .map((v) => Math.round(v))
+          .findIndex((v) => v == Math.round(right));
+        let containsFirstVertex = firstIndex != -1;
+        let containsSecondVertex = secondIndex != -1;
+        if (containsFirstVertex && !containsSecondVertex) {
+          scanLine.push(right);
+          scanLine.sort((a, b) => b - a);
+          firstIndex = scanLine
+            .map((v) => Math.round(v))
+            .findIndex((v) => v == Math.round(left));
+          if (firstIndex % 2 == 0) scanLine.push(right);
+          else scanLine.push(left);
+        } else if (!containsFirstVertex && containsSecondVertex) {
+          scanLine.push(left);
+          scanLine.sort((a, b) => b - a);
+          firstIndex = scanLine
+            .map((v) => Math.round(v))
+            .findIndex((v) => v == Math.round(left));
+          if (firstIndex % 2 == 0) scanLine.push(left);
+          else scanLine.push(right);
+        } else if (!containsFirstVertex && !containsSecondVertex) {
+          scanLine.push(left, right);
+          scanLine.sort((a, b) => b - a);
+          firstIndex = scanLine
+            .map((v) => Math.round(v))
+            .findIndex((v) => v == Math.round(left));
+          if (firstIndex % 2 == 0) scanLine.push(left, right);
+        }
+      }
       //rotiranje krova oko njegove centralne tacke
       function rotateRoof(roofPolygon, deg) {
         let midPoint = getMidPoint(roofPolygon);
@@ -398,6 +440,8 @@
               ymax: max.y,
               xTek: min.x,
               slope: slope,
+              ymin: min.y,
+              xmin: min.x,
               next: null,
             };
 
@@ -425,14 +469,19 @@
         let edgeTable = makeEdgeTable(polygon, parallellsKey);
         let intersections = new Map();
         let aet = null;
-
-        //obradjuju se nivoi do od najmanje do najvece vrednosti Y u poligonu
-        for (
-          let y = Math.round(polygonMinY);
-          y <= Math.round(polygonMaxY);
-          y++
-        ) {
-          //dodavanje ivica kojima je ymin==y
+        let parallels = edgeTable
+          .get(parallellsKey)
+          .sort((a, b) => a[0].x - b[0].x);
+        //racunanje broja scan linija ispod osnovne linije koje su u opsegu poligona
+        let numOfScanLinesUnderBaseLine = Math.floor(
+          (baseLineY - polygonMinY) / lineDistance
+        );
+        //racunanje pocetnog nivoa za skeniranje
+        let startY = Math.round(
+          baseLineY - numOfScanLinesUnderBaseLine * lineDistance
+        );
+        //dodavanje linija koje pocinju ispod startY u aet
+        for (let y = Math.round(polygonMinY); y < Math.round(startY); y++) {
           if (edgeTable.has(y)) {
             let newEdges = edgeTable.get(y);
             iterateThroughtList(newEdges, (edge) => {
@@ -441,15 +490,64 @@
                 ymax: edge.ymax,
                 xTek: edge.xTek,
                 slope: edge.slope,
+                ymin: edge.ymin,
+                xmin: edge.ymin,
                 next: null,
               });
             });
           }
-          //izbacivanje linija kojima je ymax==y
           aet = filterList(aet, (node) => {
             return node.ymax <= y;
           });
+          adjustX(aet);
+        }
+        //promenljiva za pamcenje vrednosti x koordinata linija prilikom izbacivanja tacke iz aet, da bi se
+        let inBetweenBounds = new Map();
+        //obradjuju se nivoi od najmanje do najvece vrednosti Y u poligonu
+        for (let y = Math.round(startY); y <= Math.round(polygonMaxY); y++) {
+          //dodavanje ivica kojima je ymin==y
 
+          if (edgeTable.has(y)) {
+            let newEdges = edgeTable.get(y);
+            iterateThroughtList(newEdges, (edge) => {
+              aet = addToList(aet, {
+                id: edge.id,
+                ymax: edge.ymax,
+                xTek: edge.xTek,
+                slope: edge.slope,
+                ymin: edge.ymin,
+                xmin: edge.xmin,
+                next: null,
+              });
+            });
+          }
+
+          let scanLine = [];
+          let linesInBetweenScanLines = [];
+          //izbacivanje linija kojima je ymax==y
+          let isMaxY = false;
+          aet = filterList(aet, (node) => {
+            if (node.ymax <= y) {
+              if (node.ymin) isMaxY = true;
+              console.log(node.id, y);
+            }
+            return node.ymax <= y;
+          });
+          iterateThroughtList(aet, (node) => {
+            // console.log(node.id);
+            scanLine.push(Math.round(node.xTek));
+          });
+
+          if (isMaxY) {
+            parallels.forEach((line) => {
+              if (line[0].y == y) {
+                addParallelLine(scanLine, line);
+              }
+            });
+            scanLine.sort((a, b) => a - b);
+            inBetweenBounds.set(y, scanLine);
+            console.log(y, scanLine);
+          }
           if (Number.isInteger((y - baseLineY) / lineDistance)) {
             //ako razlika izmedju y i osnovne linije umnozak rastojanja koje trazimo, u rezultat dodajemo tekuce vrednosti x iz aktivnih ivica
             let points = [];
@@ -462,30 +560,20 @@
           adjustX(aet);
         }
         //obrada ivica koje su paralelne sa osnovnom
-        let parallels = edgeTable.get(parallellsKey);
         parallels.forEach((line) => {
           if (intersections.has(Math.round(line[0].y))) {
             //ako je na scan liniji, treba dodati njena temena ako nisu vec dodata
             let vertexes = intersections.get(Math.round(line[0].y));
-            let containsFirstVertex =
-              vertexes
-                .map((v) => Math.round(v))
-                .find((v) => v == Math.round(line[0].x)) != undefined;
-            let containsSecondVertex =
-              vertexes
-                .map((v) => Math.round(v))
-                .find((v) => v == Math.round(line[1].x)) != undefined;
-
-            if (!containsFirstVertex && containsSecondVertex) {
-              vertexes.push(line[0].x);
-              vertexes.push(line[1].x);
-            }
+            addParallelLine(vertexes, line);
           }
         });
         intersections.forEach((xValues) => {
           xValues.sort((a, b) => a - b);
         });
-        return intersections;
+        return {
+          intersections: intersections,
+          inBetweenBounds: inBetweenBounds,
+        };
       }
       // #endregion
 
@@ -545,12 +633,30 @@
         }
         return placementAreaBounds;
       }
-      function getPlacementAreas(intersections) {
+      function getPlacementAreas(intersections, inBetweenBounds) {
         let placementAreas = [];
         let sortedKeys = sortedNumberKeys(intersections);
+        let boundsKeys = sortedNumberKeys(inBetweenBounds);
+        let boundsInd = 0;
         for (let i = 0; i < sortedKeys.length - 1; i++) {
+          let adjustedBottomBounds = intersections.get(sortedKeys[i]);
+          while (
+            boundsKeys[boundsInd] > sortedKeys[i] &&
+            boundsKeys[boundsInd] < sortedKeys[i + 1]
+          ) {
+            let newBounds = getPlacementAreaBounds(
+              adjustedBottomBounds,
+              inBetweenBounds.get(boundsKeys[boundsInd])
+            );
+            let points = [];
+            newBounds.forEach((bound) => {
+              points.push(bound.leftBound, bound.rightBound);
+            });
+            adjustedBottomBounds = points;
+            boundsInd++;
+          }
           let xBounds = getPlacementAreaBounds(
-            intersections.get(sortedKeys[i]),
+            adjustedBottomBounds,
             intersections.get(sortedKeys[i + 1])
           );
           xBounds.forEach((bounds) => {
@@ -594,7 +700,10 @@
           h
         );
 
-        let placementAreas = getPlacementAreas(intersections);
+        let placementAreas = getPlacementAreas(
+          intersections.intersections,
+          intersections.inBetweenBounds
+        );
 
         placementAreas.forEach((area) => {
           let newPanels = getPanelsInPlacementArea(area, w);
