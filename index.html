@@ -184,12 +184,33 @@
             y: 500,
           },
         ],
+        [
+          { x: 160, y: 716 },
+          { x: 185, y: 666 },
+          { x: 174, y: 653 },
+          { x: 116, y: 662 },
+          { x: 131, y: 675 },
+          { x: 7, y: 400 },
+          { x: 42, y: 776 },
+          { x: 69, y: 798 },
+          { x: 68, y: 609 },
+          { x: 137, y: 719 },
+          { x: 149, y: 744 },
+        ],
       ];
       // #endregion
       main();
-      // test(0, 20, 100);
+      //test(3, 20, 35);
       function main() {
-        processRoof(ctx, testPolygons[4], 0, 20, 100);
+        panelSize.width = 5;
+        panelSize.height = 5;
+        processRoof(
+          ctx,
+          testPolygons[6],
+          10,
+          panelSize.width,
+          panelSize.height
+        );
       }
 
       function processRoof(ctx, roofVerteces, baseLineIndex, w, h) {
@@ -202,7 +223,7 @@
 
         let midPoint = getMidPoint(roofVerteces);
         //krov ce biti rotiran u toku obrade pa ga rotacija canvasa vraca u pocetnu poziciju
-        //rotateCanvas(ctx, -deg, midPoint);
+        rotateCanvas(ctx, -deg, midPoint);
 
         let panelPlacement = calculatePanelPlacement(
           roofVerteces,
@@ -359,6 +380,7 @@
         ctx.rotate(-radians(deg));
         ctx.translate(-rotationCenter.x, -rotationCenter.y);
       }
+      //dodavanje tacaka iz paralelne linije u sken liniju
       function addParallelLine(scanLine, line) {
         scanLine.sort((a, b) => b - a);
         let left = line[0].x,
@@ -501,9 +523,11 @@
           });
           adjustX(aet);
         }
-        //promenljiva za pamcenje vrednosti x koordinata linija prilikom izbacivanja tacke iz aet, da bi se
-        let inBetweenBounds = new Map();
-        //obradjuju se nivoi od najmanje do najvece vrednosti Y u poligonu
+        //izmedju svake linije na rastojanju lineDistance*k od osnovne linije
+        //trazimo prostor za postavljanje panela, tako sto svaku sken liniju kombinujemo sa prethodno zapamcenim ogranicenjima za x i tako doijamo nova
+        //prethodna ogranicenja pamtimo u bottomScanLine
+        let bottomScanLine = [0, Number.MAX_SAFE_INTEGER];
+        //obradjuju se nivoi od izracunate pocetne do najvece vrednosti Y u poligonu
         for (let y = Math.round(startY); y <= Math.round(polygonMaxY); y++) {
           //dodavanje ivica kojima je ymin==y
 
@@ -523,57 +547,37 @@
           }
 
           let scanLine = [];
-          let linesInBetweenScanLines = [];
           //izbacivanje linija kojima je ymax==y
-          let isMaxY = false;
           aet = filterList(aet, (node) => {
-            if (node.ymax <= y) {
-              if (node.ymin) isMaxY = true;
-              console.log(node.id, y);
-            }
             return node.ymax <= y;
           });
+          //////////
           iterateThroughtList(aet, (node) => {
-            // console.log(node.id);
             scanLine.push(Math.round(node.xTek));
           });
 
-          if (isMaxY) {
-            parallels.forEach((line) => {
-              if (line[0].y == y) {
-                addParallelLine(scanLine, line);
-              }
-            });
-            scanLine.sort((a, b) => a - b);
-            inBetweenBounds.set(y, scanLine);
-            console.log(y, scanLine);
-          }
+          parallels.forEach((line) => {
+            if (line[0].y == y) {
+              addParallelLine(scanLine, line);
+            }
+          });
+          ///////// pronalazenje sken linije za y
+          scanLine.sort((a, b) => a - b);
+          //kombinovanje prethodno zapamcenih ogranicenja sa novom sken linijom
+          bottomScanLine = getPlacementAreaBounds(bottomScanLine, scanLine);
           if (Number.isInteger((y - baseLineY) / lineDistance)) {
-            //ako razlika izmedju y i osnovne linije umnozak rastojanja koje trazimo, u rezultat dodajemo tekuce vrednosti x iz aktivnih ivica
-            let points = [];
-            iterateThroughtList(aet, (node) => {
-              points.push(Math.round(node.xTek));
-            });
-            intersections.set(y, points);
+            //ako razlika izmedju y i osnovne linije umnozak rastojanja koje trazimo, u rezultat dodajemo pronadjenu sken liniju
+            intersections.set(y, bottomScanLine);
+            bottomScanLine = scanLine; //resetovanje ogranicenja
           }
           //prilagodjavanje tekuce vrednosti x
           adjustX(aet);
         }
-        //obrada ivica koje su paralelne sa osnovnom
-        parallels.forEach((line) => {
-          if (intersections.has(Math.round(line[0].y))) {
-            //ako je na scan liniji, treba dodati njena temena ako nisu vec dodata
-            let vertexes = intersections.get(Math.round(line[0].y));
-            addParallelLine(vertexes, line);
-          }
-        });
+
         intersections.forEach((xValues) => {
-          xValues.sort((a, b) => a - b);
+          xValues.sort((a, b) => b - a);
         });
-        return {
-          intersections: intersections,
-          inBetweenBounds: inBetweenBounds,
-        };
+        return intersections;
       }
       // #endregion
 
@@ -628,45 +632,27 @@
             } else if (xBounds.rightBound >= upperPairs[upperInd][1]) {
               upperInd++;
             }
-            placementAreaBounds.push(xBounds);
+            placementAreaBounds.push(xBounds.leftBound, xBounds.rightBound);
           }
         }
+        placementAreaBounds.sort((a, b) => a - b);
         return placementAreaBounds;
       }
-      function getPlacementAreas(intersections, inBetweenBounds) {
+      function getPlacementAreas(intersections) {
         let placementAreas = [];
         let sortedKeys = sortedNumberKeys(intersections);
-        let boundsKeys = sortedNumberKeys(inBetweenBounds);
-        let boundsInd = 0;
-        for (let i = 0; i < sortedKeys.length - 1; i++) {
-          let adjustedBottomBounds = intersections.get(sortedKeys[i]);
-          while (
-            boundsKeys[boundsInd] > sortedKeys[i] &&
-            boundsKeys[boundsInd] < sortedKeys[i + 1]
-          ) {
-            let newBounds = getPlacementAreaBounds(
-              adjustedBottomBounds,
-              inBetweenBounds.get(boundsKeys[boundsInd])
-            );
-            let points = [];
-            newBounds.forEach((bound) => {
-              points.push(bound.leftBound, bound.rightBound);
-            });
-            adjustedBottomBounds = points;
-            boundsInd++;
+        for (let i = 1; i < sortedKeys.length; i++) {
+          let xBounds = intersections.get(sortedKeys[i]);
+          for (let j = 0; j < xBounds.length; j += 2) {
+            if (j + 1 < xBounds.length) {
+              placementAreas.push({
+                lowerY: sortedKeys[i - 1],
+                upperY: sortedKeys[i],
+                rightBound: xBounds[j],
+                leftBound: xBounds[j + 1],
+              });
+            }
           }
-          let xBounds = getPlacementAreaBounds(
-            adjustedBottomBounds,
-            intersections.get(sortedKeys[i + 1])
-          );
-          xBounds.forEach((bounds) => {
-            placementAreas.push({
-              lowerY: sortedKeys[i],
-              upperY: sortedKeys[i + 1],
-              rightBound: bounds.rightBound,
-              leftBound: bounds.leftBound,
-            });
-          });
         }
         return placementAreas;
       }
@@ -700,10 +686,7 @@
           h
         );
 
-        let placementAreas = getPlacementAreas(
-          intersections.intersections,
-          intersections.inBetweenBounds
-        );
+        let placementAreas = getPlacementAreas(intersections);
 
         placementAreas.forEach((area) => {
           let newPanels = getPanelsInPlacementArea(area, w);
