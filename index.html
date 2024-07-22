@@ -202,15 +202,7 @@
       main();
       //test(3, 20, 35);
       function main() {
-        panelSize.width = 5;
-        panelSize.height = 5;
-        processRoof(
-          ctx,
-          testPolygons[6],
-          10,
-          panelSize.width,
-          panelSize.height
-        );
+        processRoof(ctx, testPolygons[5], 0, panelSize.width, panelSize.height);
       }
 
       function processRoof(ctx, roofVerteces, baseLineIndex, w, h) {
