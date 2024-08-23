@@ -199,8 +199,9 @@
         ],
       ];
       // #endregion
-      main();
-      //test(3, 20, 35);
+      //main();
+      test(0, 10, 20);
+
       function main() {
         processRoof(ctx, testPolygons[5], 0, panelSize.width, panelSize.height);
       }
@@ -381,7 +382,7 @@
         if (left > right) {
           let c = right;
           right = left;
-          left = right;
+          left = c;
         }
         let firstIndex = scanLine
           .map((v) => Math.round(v))
@@ -404,7 +405,7 @@
           scanLine.sort((a, b) => b - a);
           firstIndex = scanLine
             .map((v) => Math.round(v))
-            .findIndex((v) => v == Math.round(left));
+            .findIndex((v) => v == Math.round(right));
           if (firstIndex % 2 == 0) scanLine.push(left);
           else scanLine.push(right);
         } else if (!containsFirstVertex && !containsSecondVertex) {
